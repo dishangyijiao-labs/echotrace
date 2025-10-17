@@ -49,6 +49,7 @@ data/
 logs/
 metadata.sqlite
 *.sqlite
+pipeline_data/
 
 # Whisper models cache
 ~/.cache/huggingface/

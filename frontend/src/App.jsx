@@ -21,7 +21,7 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 // Styles
 import './styles/globals.css'
 
-const API_BASE = 'http://localhost:8001/api'
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8001/api'
 
 // Configure axios defaults
 axios.defaults.baseURL = API_BASE

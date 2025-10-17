@@ -20,7 +20,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Build Tool**: Vite
 - **UI Components**: Headless UI, Lucide React
 - **API Client**: Axios with JWT interceptors
-- **Dev Port**: 5173
+- **Dev Port**: 8080 (Docker), 5173 (Vite dev server)
 
 ### Django Apps Structure
 
@@ -83,7 +83,7 @@ npm install
 
 # Start development server
 npm run dev
-# Server runs on http://localhost:5173
+# Server runs on http://localhost:8080
 
 # Build for production
 npm run build
