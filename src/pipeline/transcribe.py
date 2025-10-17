@@ -14,7 +14,7 @@ def load_model(cfg: WhisperConfig) -> WhisperModel:
         device = cfg.device
     else:
         device = "cuda" if cfg.compute_type in {"float16", "int8_float16"} else "cpu"
-    
+
     return WhisperModel(
         cfg.model_size,
         device=device,
@@ -22,7 +22,9 @@ def load_model(cfg: WhisperConfig) -> WhisperModel:
     )
 
 
-def transcribe_file(model: WhisperModel, wav_path: Path, cfg: WhisperConfig) -> Dict[str, Any]:
+def transcribe_file(
+    model: WhisperModel, wav_path: Path, cfg: WhisperConfig
+) -> Dict[str, Any]:
     segments, info = model.transcribe(
         str(wav_path),
         language=cfg.language,
