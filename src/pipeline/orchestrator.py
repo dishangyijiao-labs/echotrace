@@ -136,7 +136,9 @@ def export_outputs(cfg: PipelineConfig, engine) -> None:
     jsonl_path = exports_dir["jsonl"]
     parquet_path = exports_dir["parquet"]
 
-    jsonl_path.write_text("\n".join(json.dumps(row, ensure_ascii=False) for row in records))
+    jsonl_path.write_text(
+        "\n".join(json.dumps(row, ensure_ascii=False) for row in records)
+    )
     df = pd.DataFrame.from_records(records)
     df.to_parquet(parquet_path, index=False)
 

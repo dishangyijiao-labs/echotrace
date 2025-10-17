@@ -78,7 +78,9 @@ def fetch_pending_chunks(engine, limit: int = 8) -> list[ChunkFile]:
         return list(session.exec(statement).all())
 
 
-def mark_chunk(engine, chunk_path: Path, status: str, transcript_path: Optional[Path] = None) -> None:
+def mark_chunk(
+    engine, chunk_path: Path, status: str, transcript_path: Optional[Path] = None
+) -> None:
     with Session(engine) as session:
         statement = select(ChunkFile).where(ChunkFile.chunk_path == str(chunk_path))
         record = session.exec(statement).first()
@@ -96,6 +98,7 @@ def iter_sources(engine, status: str = "pending") -> Iterable[SourceFile]:
     with Session(engine) as session:
         statement = select(SourceFile).where(SourceFile.status == status)
         yield from session.exec(statement)
+
 
 def get_source(engine, source_path: Path) -> SourceFile | None:
     with Session(engine) as session:

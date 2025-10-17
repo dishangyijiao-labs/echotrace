@@ -1,6 +1,6 @@
-# media-transfer
+# 语迹（EchoTrace）
 
-媒体文件转录管理系统 - 批量将本地音视频转换为文本并支持全文搜索
+智能媒体转录管理系统 - 批量将本地音视频转换为文本并支持全文搜索
 
 ## 快速开始
 
@@ -19,6 +19,12 @@ cd frontend
 npm run dev
 ```
 
+
+## 代码风格
+
+- 安装开发依赖：`pip install -e .[develop]`
+- 运行 Ruff 检查：`ruff check backend src`
+- 自动修复常见问题：`ruff check backend src --fix`
 ## 技术栈
 
 - Django + Django REST Framework

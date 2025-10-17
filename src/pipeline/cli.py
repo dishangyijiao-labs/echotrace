@@ -12,7 +12,11 @@ app = typer.Typer(help="Media cleaning pipeline CLI")
 
 
 @app.command()
-def run(config: Path = typer.Option(Path("configs/default.yaml"), help="Path to the pipeline config")):
+def run(
+    config: Path = typer.Option(
+        Path("configs/default.yaml"), help="Path to the pipeline config"
+    ),
+):
     """Execute the full ingestion → transcription → export workflow."""
     cfg = load_config(config)
     print(f"[bold green]Running pipeline with config:[/bold green] {config}")
