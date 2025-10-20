@@ -62,8 +62,10 @@ function Users() {
         ...(filter !== 'all' && { filter }),
         ...(searchTerm.trim() && { search: searchTerm.trim() })
       }
-      const response = await axios.get('/api/users/', { params })
-      setUsers(response.data)
+      const response = await axios.get('/users/', { params })
+      // Handle both wrapped and unwrapped responses
+      const data = response.data?.data || response.data
+      setUsers(Array.isArray(data) ? data : data?.results || [])
     } catch (error) {
       console.error('Failed to load users:', error)
     } finally {
@@ -78,7 +80,7 @@ function Users() {
   const createUser = async () => {
     try {
       setSaving(true)
-      await axios.post('/api/users/', newUser)
+      await axios.post('/users/', newUser)
       setShowCreateModal(false)
       setNewUser(defaultNewUser)
       loadUsers()
@@ -92,7 +94,7 @@ function Users() {
   const updateUser = async () => {
     try {
       setSaving(true)
-      await axios.patch(`/api/users/${selectedUser.id}/`, editUser)
+      await axios.patch(`/users/${selectedUser.id}/`, editUser)
       setShowEditModal(false)
       setSelectedUser(null)
       setEditUser({})
@@ -107,7 +109,7 @@ function Users() {
   const resetPassword = async () => {
     try {
       setSaving(true)
-      await axios.post(`/api/users/${selectedUser.id}/reset-password/`, {
+      await axios.post(`/users/${selectedUser.id}/reset-password/`, {
         password: newPassword
       })
       setShowPasswordModal(false)
@@ -122,7 +124,7 @@ function Users() {
 
   const toggleUserStatus = async (userId, isActive) => {
     try {
-      await axios.patch(`/api/users/${userId}/`, { is_active: !isActive })
+      await axios.patch(`/users/${userId}/`, { is_active: !isActive })
       loadUsers()
     } catch (error) {
       console.error('Failed to toggle user status:', error)
@@ -132,7 +134,7 @@ function Users() {
   const deleteUser = async (userId) => {
     if (!window.confirm('确定要删除这个用户吗？此操作不可撤销。')) return
     try {
-      await axios.delete(`/api/users/${userId}/`)
+      await axios.delete(`/users/${userId}/`)
       loadUsers()
     } catch (error) {
       console.error('Failed to delete user:', error)

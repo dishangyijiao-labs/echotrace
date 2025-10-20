@@ -66,7 +66,7 @@ function Activity() {
         ...(dateRange.end && { end_date: dateRange.end })
       }
 
-      const response = await axios.get('/api/activities/', { params })
+      const response = await axios.get('/activities/', { params })
       const payload = response.data
 
       setActivities(payload.results || payload)
@@ -100,7 +100,7 @@ function Activity() {
         export: 'csv'
       }
 
-      const response = await axios.get('/api/activities/export/', {
+      const response = await axios.get('/activities/export/', {
         params,
         responseType: 'blob'
       })

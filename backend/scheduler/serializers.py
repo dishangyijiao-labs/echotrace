@@ -11,6 +11,8 @@ class ScheduleSerializer(serializers.ModelSerializer):
     created_by_username = serializers.CharField(
         source="created_by.username", read_only=True
     )
+    # 为last_run添加嵌套的ScheduleRun对象
+    last_run_info = serializers.SerializerMethodField()
 
     class Meta:
         model = Schedule
@@ -18,19 +20,18 @@ class ScheduleSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "description",
-            "type",
-            "status",
-            "frequency",
-            "cron_expression",
-            "start_date",
-            "end_date",
-            "next_run",
-            "last_run",
-            "parameters",
+            "schedule_type",
+            "time",
+            "days_of_week",
+            "is_active",
+            "settings",
             "created_by",
             "created_by_username",
             "created_at",
             "updated_at",
+            "last_run",
+            "last_run_info",
+            "next_run",
             "run_count",
             "success_count",
             "failure_count",
@@ -46,6 +47,18 @@ class ScheduleSerializer(serializers.ModelSerializer):
             "failure_count",
         ]
 
+    def get_last_run_info(self, obj):
+        """获取最后一次执行信息"""
+        last_run = obj.runs.first()  # 已经按时间倒序
+        if last_run:
+            return {
+                "status": last_run.status,
+                "timestamp": last_run.timestamp,
+                "duration": last_run.duration,
+                "jobs_created": last_run.jobs_created,
+            }
+        return None
+
 
 class ScheduleCreateSerializer(serializers.ModelSerializer):
     """调度任务创建序列化器"""
@@ -55,12 +68,11 @@ class ScheduleCreateSerializer(serializers.ModelSerializer):
         fields: ClassVar = [
             "name",
             "description",
-            "type",
-            "frequency",
-            "cron_expression",
-            "start_date",
-            "end_date",
-            "parameters",
+            "schedule_type",
+            "time",
+            "days_of_week",
+            "is_active",
+            "settings",
         ]
 
     def create(self, validated_data):
@@ -72,7 +84,9 @@ class ScheduleCreateSerializer(serializers.ModelSerializer):
 class ScheduleRunSerializer(serializers.ModelSerializer):
     """调度执行记录序列化器"""
 
-    schedule_name = serializers.CharField(source="schedule.name", read_only=True)
+    schedule_name = serializers.CharField(
+        source="schedule.name", read_only=True
+    )
 
     class Meta:
         model = ScheduleRun
@@ -81,11 +95,9 @@ class ScheduleRunSerializer(serializers.ModelSerializer):
             "schedule",
             "schedule_name",
             "status",
-            "started_at",
-            "completed_at",
+            "timestamp",
             "duration",
-            "result",
+            "jobs_created",
             "error_message",
-            "log_output",
         ]
-        read_only_fields: ClassVar = ["id", "started_at"]
+        read_only_fields: ClassVar = ["id", "timestamp"]

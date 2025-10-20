@@ -85,7 +85,7 @@ function Settings() {
   const loadSettings = async () => {
     try {
       setLoading(true)
-      const response = await axios.get('/api/settings/')
+      const response = await axios.get('/settings/')
       setSettings(response.data)
     } catch (error) {
       console.error('Failed to load settings:', error)
@@ -97,7 +97,7 @@ function Settings() {
   const saveSettings = async () => {
     try {
       setSaving(true)
-      await axios.post('/api/settings/', settings)
+      await axios.post('/settings/', settings)
       setMessage({ type: 'success', text: '设置已保存' })
       setTimeout(() => setMessage(null), 3000)
     } catch (error) {
@@ -121,7 +121,7 @@ function Settings() {
 
   const testNasConnection = async () => {
     try {
-      const response = await axios.post('/api/settings/test-nas/', {
+      const response = await axios.post('/settings/test-nas/', {
         host: settings.storage.nas_host,
         path: settings.storage.nas_path
       })

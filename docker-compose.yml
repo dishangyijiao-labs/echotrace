@@ -25,7 +25,7 @@ services:
       context: frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE: http://backend:8001/api
+        VITE_API_BASE: http://localhost:8001/api
     container_name: echotrace-frontend
     depends_on:
       - backend

@@ -11,7 +11,8 @@ import {
   AlertCircle,
   CheckCircle,
   RefreshCw,
-  Settings
+  Settings,
+  X
 } from 'lucide-react'
 
 const SCHEDULE_TYPE_OPTIONS = [
@@ -56,8 +57,10 @@ function Scheduler() {
     if (!user?.is_admin) return
     try {
       setLoading(true)
-      const response = await axios.get('/api/schedules/')
-      setSchedules(response.data)
+      const response = await axios.get('/schedules/')
+      // Handle both wrapped and unwrapped responses
+      const data = response.data?.data || response.data
+      setSchedules(Array.isArray(data) ? data : data?.results || [])
     } catch (error) {
       console.error('Failed to load schedules:', error)
     } finally {
@@ -72,7 +75,7 @@ function Scheduler() {
   const createSchedule = async () => {
     try {
       setSubmitting(true)
-      await axios.post('/api/schedules/', newSchedule)
+      await axios.post('/schedules/', newSchedule)
       setShowCreateModal(false)
       setNewSchedule(defaultForm)
       loadSchedules()
@@ -86,7 +89,7 @@ function Scheduler() {
   const deleteSchedule = async (scheduleId) => {
     if (!window.confirm('确定要删除这个计划吗？')) return
     try {
-      await axios.delete(`/api/schedules/${scheduleId}/`)
+      await axios.delete(`/schedules/${scheduleId}/`)
       loadSchedules()
     } catch (error) {
       console.error('Failed to delete schedule:', error)
@@ -95,10 +98,11 @@ function Scheduler() {
 
   const toggleSchedule = async (scheduleId, isActive) => {
     try {
-      await axios.patch(`/api/schedules/${scheduleId}/`, { is_active: !isActive })
+      await axios.patch(`/schedules/${scheduleId}/`, { is_active: !isActive })
       loadSchedules()
     } catch (error) {
       console.error('Failed to toggle schedule:', error)
+      alert('切换计划状态失败，请重试')
     }
   }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import axios from 'axios'
 import {
   Upload,
@@ -12,7 +12,9 @@ import {
   File,
   Plus,
   X,
-  RefreshCw
+  RefreshCw,
+  AlertCircle,
+  CheckCircle
 } from 'lucide-react'
 
 const TYPE_TABS = [
@@ -30,6 +32,8 @@ function Resources() {
   const [selectedResource, setSelectedResource] = useState(null)
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [newTag, setNewTag] = useState('')
+  const [uploadError, setUploadError] = useState('')
+  const [uploadSuccess, setUploadSuccess] = useState('')
   const fileInputRef = useRef(null)
 
   const loadResources = useCallback(async () => {
@@ -39,8 +43,10 @@ function Resources() {
         ...(filter !== 'all' && { type: filter }),
         ...(searchTerm && { search: searchTerm })
       }
-      const response = await axios.get('/api/resources/', { params })
-      setResources(response.data)
+      const response = await axios.get('/resources/', { params })
+      // Handle both wrapped and unwrapped responses
+      const data = response.data?.data || response.data
+      setResources(Array.isArray(data) ? data : data?.results || [])
     } catch (error) {
       console.error('Failed to load resources:', error)
     } finally {
@@ -71,6 +77,8 @@ function Resources() {
     if (!files || files.length === 0) return
 
     setUploading(true)
+    setUploadError('')
+    setUploadSuccess('')
     const formData = new FormData()
 
     Array.from(files).forEach((file) => {
@@ -78,15 +86,29 @@ function Resources() {
     })
 
     try {
-      await axios.post('/api/resources/upload/', formData, {
+      const response = await axios.post('/resources/upload/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
       })
-      setShowUploadModal(false)
-      loadResources()
+      
+      // Show success message
+      const uploadedCount = files.length
+      setUploadSuccess(`成功上传 ${uploadedCount} 个文件！`)
+      
+      // Wait a bit to show the success message, then close modal and reload
+      setTimeout(() => {
+        setShowUploadModal(false)
+        setUploadSuccess('')
+        loadResources()
+      }, 1500)
     } catch (error) {
       console.error('Failed to upload files:', error)
+      const errorMsg = error.response?.data?.error?.message || 
+                       error.response?.data?.message || 
+                       error.message || 
+                       '上传失败，请重试'
+      setUploadError(errorMsg)
     } finally {
       setUploading(false)
       if (fileInputRef.current) {
@@ -99,17 +121,38 @@ function Resources() {
     if (!window.confirm('确定要删除这个资源吗？')) return
 
     try {
-      await axios.delete(`/api/resources/${resourceId}/`)
+      await axios.delete(`/resources/${resourceId}/`)
       loadResources()
     } catch (error) {
       console.error('Failed to delete resource:', error)
     }
   }
 
+  const createTranscriptionJob = async (resourceId) => {
+    try {
+      const response = await axios.post('/jobs/', {
+        media_id: resourceId,
+        priority: 0,
+        engine: 'whisper',
+        engine_model: 'small',
+        device: 'auto'
+      })
+      
+      alert('转录任务已创建！请前往任务队列查看进度。')
+      closeDetailModal()
+    } catch (error) {
+      console.error('Failed to create transcription job:', error)
+      const errorMsg = error.response?.data?.error?.message || 
+                       error.response?.data?.message || 
+                       '创建任务失败，请重试'
+      alert(errorMsg)
+    }
+  }
+
   const addTag = async (resourceId, tagName) => {
     if (!tagName.trim()) return
     try {
-      await axios.post(`/api/resources/${resourceId}/tags/`, { name: tagName.trim() })
+      await axios.post(`/resources/${resourceId}/tags/`, { name: tagName.trim() })
       setNewTag('')
       loadResources()
     } catch (error) {
@@ -119,7 +162,7 @@ function Resources() {
 
   const removeTag = async (resourceId, tagId) => {
     try {
-      await axios.delete(`/api/resources/${resourceId}/tags/${tagId}/`)
+      await axios.delete(`/resources/${resourceId}/tags/${tagId}/`)
       loadResources()
     } catch (error) {
       console.error('Failed to remove tag:', error)
@@ -346,9 +389,22 @@ function Resources() {
             </div>
 
             <div className="resources-modal-body">
+              {uploadError && (
+                <div className="alert alert-error" style={{ marginBottom: '1rem', padding: '0.75rem', backgroundColor: '#fee', border: '1px solid #fcc', borderRadius: '0.5rem', color: '#c00' }}>
+                  <AlertCircle style={{ display: 'inline-block', width: '1rem', height: '1rem', marginRight: '0.5rem' }} />
+                  {uploadError}
+                </div>
+              )}
+              {uploadSuccess && (
+                <div className="alert alert-success" style={{ marginBottom: '1rem', padding: '0.75rem', backgroundColor: '#efe', border: '1px solid #cfc', borderRadius: '0.5rem', color: '#090' }}>
+                  <CheckCircle style={{ display: 'inline-block', width: '1rem', height: '1rem', marginRight: '0.5rem' }} />
+                  {uploadSuccess}
+                </div>
+              )}
               <div
                 className={`resources-dropzone${uploading ? ' is-uploading' : ''}`}
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => !uploading && fileInputRef.current?.click()}
+                style={{ cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.6 : 1 }}
               >
                 <Upload className="resources-dropzone-icon" />
                 <p className="resources-dropzone-title">点击或拖拽文件到这里上传</p>
@@ -358,8 +414,10 @@ function Resources() {
                   ref={fileInputRef}
                   type="file"
                   multiple
+                  accept="audio/*,video/*"
                   className="resources-file-input"
                   onChange={(event) => handleFileUpload(event.target.files)}
+                  disabled={uploading}
                 />
               </div>
             </div>
@@ -501,6 +559,15 @@ function Resources() {
               <button
                 type="button"
                 className="resources-primary-button"
+                onClick={() => createTranscriptionJob(selectedResource.id)}
+                style={{ marginLeft: '0.5rem' }}
+              >
+                <Plus className="resources-primary-button-icon" />
+                创建转录任务
+              </button>
+              <button
+                type="button"
+                className="resources-primary-button"
                 onClick={() => downloadResource(selectedResource.id, selectedResource.filename)}
               >
                 <Download className="resources-primary-button-icon" />
@@ -516,7 +583,7 @@ function Resources() {
 
 const downloadResource = async (resourceId, filename) => {
   try {
-    const response = await axios.get(`/api/resources/${resourceId}/download/`, {
+    const response = await axios.get(`/resources/${resourceId}/download/`, {
       responseType: 'blob'
     })
     const url = window.URL.createObjectURL(new Blob([response.data]))
