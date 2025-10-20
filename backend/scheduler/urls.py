@@ -37,17 +37,15 @@ urlpatterns = [
         views.ScheduleRunListView.as_view(),
         name="schedule-run-list-no-slash",
     ),
-    # 调度操作
-    path("schedules/<int:pk>/run/", views.schedule_run, name="schedule-run"),
-    path("schedules/<int:pk>/run", views.schedule_run, name="schedule-run-no-slash"),
-    path("schedules/<int:pk>/pause/", views.schedule_pause, name="schedule-pause"),
+    # 调度操作 - 切换状态
     path(
-        "schedules/<int:pk>/pause", views.schedule_pause, name="schedule-pause-no-slash"
+        "schedules/<int:pk>/toggle/",
+        views.schedule_toggle,
+        name="schedule-toggle",
     ),
-    path("schedules/<int:pk>/resume/", views.schedule_resume, name="schedule-resume"),
     path(
-        "schedules/<int:pk>/resume",
-        views.schedule_resume,
-        name="schedule-resume-no-slash",
+        "schedules/<int:pk>/toggle",
+        views.schedule_toggle,
+        name="schedule-toggle-no-slash",
     ),
 ]

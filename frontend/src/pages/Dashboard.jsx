@@ -53,9 +53,20 @@ function Dashboard() {
   const loadDashboardData = async () => {
     try {
       const response = await axios.get('/dashboard/stats/')
-      setStats(response.data)
+      // Handle wrapped response {ok: true, data: {...}}
+      const data = response.data?.data || response.data
+      setStats(data)
     } catch (error) {
       console.error('Failed to load dashboard data:', error)
+      // Set default values on error
+      setStats({
+        totalResources: 0,
+        totalTranscripts: 0,
+        pendingTasks: 0,
+        completedTasks: 0,
+        activeUsers: 0,
+        recentActivity: []
+      })
     } finally {
       setLoading(false)
     }

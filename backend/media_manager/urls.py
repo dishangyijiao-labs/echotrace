@@ -27,4 +27,5 @@ urlpatterns = [
     path("api/", include("settings.urls")),
     path("api/", include("scheduler.urls")),
     path("api/", include("activities.urls")),
+    path("api/dashboard/", include("dashboard.urls")),
 ]

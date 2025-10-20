@@ -46,8 +46,10 @@ function Results() {
         ...(filter !== 'all' && { status: filter }),
         ...(searchTerm && { search: searchTerm })
       }
-      const response = await axios.get('/api/transcripts/', { params })
-      setResults(response.data)
+      const response = await axios.get('/transcripts/', { params })
+      // Handle both wrapped and unwrapped responses
+      const data = response.data?.data || response.data
+      setResults(Array.isArray(data) ? data : data?.results || [])
     } catch (error) {
       console.error('Failed to load results:', error)
     } finally {
@@ -85,7 +87,7 @@ function Results() {
   const saveEdit = async (resultId) => {
     try {
       setSaving(true)
-      await axios.patch(`/api/transcripts/${resultId}/`, {
+      await axios.patch(`/transcripts/${resultId}/`, {
         content: editContent
       })
       cancelEditing()
@@ -99,7 +101,7 @@ function Results() {
 
   const downloadTranscript = async (resultId, filename) => {
     try {
-      const response = await axios.get(`/api/transcripts/${resultId}/download/`, {
+      const response = await axios.get(`/transcripts/${resultId}/download/`, {
         responseType: 'blob'
       })
       const url = window.URL.createObjectURL(new Blob([response.data]))

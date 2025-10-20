@@ -23,27 +23,54 @@ class ScheduleListCreateView(generics.ListCreateAPIView):
         queryset = Schedule.objects.all()
 
         # 过滤参数
-        status_filter = self.request.query_params.get("status")
-        type_filter = self.request.query_params.get("type")
+        is_active = self.request.query_params.get("is_active")
+        schedule_type = self.request.query_params.get("schedule_type")
         search = self.request.query_params.get("search")
 
-        if status_filter:
-            queryset = queryset.filter(status=status_filter)
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == "true")
 
-        if type_filter:
-            queryset = queryset.filter(type=type_filter)
+        if schedule_type:
+            queryset = queryset.filter(schedule_type=schedule_type)
 
         if search:
             queryset = queryset.filter(
                 Q(name__icontains=search) | Q(description__icontains=search)
             )
 
-        return queryset
+        return queryset.order_by("-created_at")
 
     def get_serializer_class(self):
         if self.request.method == "POST":
             return ScheduleCreateSerializer
         return ScheduleSerializer
+
+    def list(self, request, *args, **kwargs):
+        """Wrap list response"""
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({"ok": True, "data": serializer.data})
+
+    def create(self, request, *args, **kwargs):
+        """Wrap create response"""
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            schedule = serializer.save()
+            return Response(
+                {"ok": True, "data": ScheduleSerializer(schedule).data},
+                status=status.HTTP_201_CREATED,
+            )
+        return Response(
+            {
+                "ok": False,
+                "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Invalid input",
+                    "details": serializer.errors,
+                },
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
 
 class ScheduleDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -52,6 +79,44 @@ class ScheduleDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Schedule.objects.all()
     serializer_class = ScheduleSerializer
     permission_classes: ClassVar = [IsAuthenticated]
+
+    def retrieve(self, request, *args, **kwargs):
+        """Wrap retrieve response"""
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return Response({"ok": True, "data": serializer.data})
+
+    def update(self, request, *args, **kwargs):
+        """Wrap update response"""
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial
+        )
+        if serializer.is_valid():
+            schedule = serializer.save()
+            result_data = ScheduleSerializer(schedule).data
+            return Response({"ok": True, "data": result_data})
+        return Response(
+            {
+                "ok": False,
+                "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Invalid input",
+                    "details": serializer.errors,
+                },
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        """Wrap destroy response"""
+        instance = self.get_object()
+        instance.delete()
+        return Response(
+            {"ok": True, "message": "Schedule deleted successfully"},
+            status=status.HTTP_204_NO_CONTENT,
+        )
 
 
 class ScheduleRunListView(generics.ListAPIView):
@@ -72,72 +137,27 @@ class ScheduleRunListView(generics.ListAPIView):
         return queryset
 
 
-@api_view(["POST"])
+@api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
-def schedule_run(request, pk):
-    """手动执行调度任务"""
+def schedule_toggle(request, pk):
+    """切换调度任务状态(活跃/暂停)"""
     try:
         schedule = Schedule.objects.get(pk=pk)
     except Schedule.DoesNotExist:
         return Response(
-            {"error": "Schedule not found"}, status=status.HTTP_404_NOT_FOUND
+            {
+                "ok": False,
+                "error": {
+                    "code": "NOT_FOUND",
+                    "message": "Schedule not found",
+                },
+            },
+            status=status.HTTP_404_NOT_FOUND,
         )
 
-    # 检查调度是否处于活动状态
-    if schedule.status != "active":
-        return Response(
-            {"error": "Schedule is not active"}, status=status.HTTP_400_BAD_REQUEST
-        )
-
-    # 创建执行记录
-    schedule_run = ScheduleRun.objects.create(schedule=schedule, status="running")
-
-    # 这里应该触发实际的任务执行逻辑
-    # 目前只是模拟
-    schedule_run.status = "completed"
-    schedule_run.result = {"message": "Task executed successfully"}
-    schedule_run.save()
-
-    # 更新调度统计
-    schedule.run_count += 1
-    schedule.success_count += 1
-    schedule.save()
-
-    serializer = ScheduleRunSerializer(schedule_run)
-    return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def schedule_pause(request, pk):
-    """暂停调度任务"""
-    try:
-        schedule = Schedule.objects.get(pk=pk)
-    except Schedule.DoesNotExist:
-        return Response(
-            {"error": "Schedule not found"}, status=status.HTTP_404_NOT_FOUND
-        )
-
-    schedule.status = "paused"
+    # Toggle is_active status
+    schedule.is_active = request.data.get("is_active", not schedule.is_active)
     schedule.save()
 
     serializer = ScheduleSerializer(schedule)
-    return Response(serializer.data)
-
-
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def schedule_resume(request, pk):
-    """恢复调度任务"""
-    try:
-        schedule = Schedule.objects.get(pk=pk)
-    except Schedule.DoesNotExist:
-        return Response(
-            {"error": "Schedule not found"}, status=status.HTTP_404_NOT_FOUND
-        )
-
-    schedule.status = "active"
-    schedule.save()
-
-    serializer = ScheduleSerializer(schedule)
-    return Response(serializer.data)
+    return Response({"ok": True, "data": serializer.data})
