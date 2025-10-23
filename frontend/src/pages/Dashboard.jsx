@@ -161,43 +161,61 @@ function Dashboard() {
 
   if (loading) {
     return (
-      <div className="dashboard-loading">
-        <span className="spinner" />
+      <div className="flex items-center justify-center min-h-64">
+        <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="dashboard">
-      <section className="dashboard-hero">
-        <div className="dashboard-hero-info">
-          <div className="dashboard-hero-label">系统总览</div>
-          <h1 className="dashboard-hero-title">欢迎回来，{displayName}</h1>
-          <p className="dashboard-hero-desc">
+    <div className="p-6 space-y-8">
+      <section className="space-y-6">
+        <div className="space-y-6">
+          <div className="text-sm font-medium text-blue-600 uppercase tracking-wide">系统总览</div>
+          <h1 className="text-3xl font-bold text-gray-900">欢迎回来，{displayName}</h1>
+          <p className="text-lg text-gray-600 max-w-3xl">
             查看最新的任务进度、转录成果和团队活动。使用快捷操作能够快速完成日常流程。
           </p>
-          <div className="dashboard-hero-highlight">
-            <TrendingUp className="dashboard-hero-highlight-icon" />
+          <div className="flex items-start space-x-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <TrendingUp className="w-6 h-6 text-blue-600 mt-1 flex-shrink-0" />
             <div>
-              <p className="dashboard-hero-highlight-title">今日概览</p>
-              <p className="dashboard-hero-highlight-meta">
+              <p className="font-semibold text-blue-900">今日概览</p>
+              <p className="text-blue-700">
                 {formatNumber(stats.completedTasks)} 个任务已完成，{formatNumber(stats.pendingTasks)} 个仍在排队中。
               </p>
             </div>
           </div>
         </div>
 
-        <div className="dashboard-kpi-grid">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {metricCards.map((card) => {
             const Icon = card.icon
+            const colorClasses = {
+              'is-blue': 'bg-blue-50 border-blue-200 hover:bg-blue-100 text-blue-900',
+              'is-emerald': 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100 text-emerald-900',
+              'is-amber': 'bg-amber-50 border-amber-200 hover:bg-amber-100 text-amber-900',
+              'is-green': 'bg-green-50 border-green-200 hover:bg-green-100 text-green-900'
+            }
+            const iconColorClasses = {
+              'is-blue': 'text-blue-600',
+              'is-emerald': 'text-emerald-600',
+              'is-amber': 'text-amber-600',
+              'is-green': 'text-green-600'
+            }
             return (
-              <Link key={card.title} to={card.link} className={`dashboard-kpi ${card.accent}`}>
-                <div className="dashboard-kpi-icon">
-                  <Icon className="dashboard-kpi-icon-svg" />
-                </div>
-                <div className="dashboard-kpi-meta">
-                  <span className="dashboard-kpi-label">{card.title}</span>
-                  <span className="dashboard-kpi-value">{card.value}</span>
+              <Link 
+                key={card.title} 
+                to={card.link} 
+                className={`block p-6 rounded-lg border-2 transition-colors duration-200 ${colorClasses[card.accent]}`}
+              >
+                <div className="flex items-center space-x-4">
+                  <div className={`p-3 rounded-lg bg-white ${iconColorClasses[card.accent]}`}>
+                    <Icon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium opacity-75">{card.title}</div>
+                    <div className="text-2xl font-bold">{card.value}</div>
+                  </div>
                 </div>
               </Link>
             )
@@ -205,86 +223,103 @@ function Dashboard() {
         </div>
       </section>
 
-      <section className="dashboard-section">
-        <div className="dashboard-panel dashboard-panel--wide">
-          <div className="dashboard-panel-header">
-            <h2 className="dashboard-panel-title">
-              <Activity className="dashboard-panel-icon" /> 最近活动
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-white rounded-lg border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <h2 className="flex items-center text-lg font-semibold text-gray-900">
+              <Activity className="w-5 h-5 mr-2 text-gray-600" /> 最近活动
             </h2>
-            <Link to="/activity" className="dashboard-panel-link">
+            <Link to="/activity" className="text-blue-600 hover:text-blue-700 font-medium text-sm">
               查看全部
             </Link>
           </div>
-          <div className="dashboard-panel-body">
+          <div className="p-6">
             {stats.recentActivity && stats.recentActivity.length > 0 ? (
-              <ul className="dashboard-activity-list">
+              <ul className="space-y-4">
                 {stats.recentActivity.slice(0, 6).map((activity, index) => (
-                  <li key={`${activity.timestamp}-${index}`} className="dashboard-activity-item">
-                    <div className="dashboard-activity-marker" />
-                    <div>
-                      <p className="dashboard-activity-text">{activity.description}</p>
-                      <p className="dashboard-activity-meta">{activity.timestamp}</p>
+                  <li key={`${activity.timestamp}-${index}`} className="flex items-start space-x-3">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-gray-900 font-medium">{activity.description}</p>
+                      <p className="text-sm text-gray-500">{activity.timestamp}</p>
                     </div>
                   </li>
                 ))}
               </ul>
             ) : (
-              <div className="dashboard-empty">暂无最近活动</div>
+              <div className="text-center py-8 text-gray-500">暂无最近活动</div>
             )}
           </div>
         </div>
 
-        <div className="dashboard-panel">
-          <div className="dashboard-panel-header">
-            <h2 className="dashboard-panel-title">
-              <Clock className="dashboard-panel-icon" /> 任务概览
-            </h2>
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="flex items-center text-lg font-semibold text-gray-900">
+                <Clock className="w-5 h-5 mr-2 text-gray-600" /> 任务概览
+              </h2>
+            </div>
+            <div className="p-6">
+              <ul className="space-y-4">
+                {taskHighlights.map((item) => {
+                  const Icon = item.icon
+                  const colorClasses = {
+                    'is-warning': 'text-amber-600 bg-amber-50',
+                    'is-success': 'text-green-600 bg-green-50',
+                    'is-info': 'text-blue-600 bg-blue-50'
+                  }
+                  return (
+                    <li key={item.label} className="flex items-center space-x-3">
+                      <div className={`p-2 rounded-lg ${colorClasses[item.accent]}`}>
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xl font-bold text-gray-900">{item.value}</p>
+                        <p className="text-sm text-gray-600">{item.label}</p>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
           </div>
-          <div className="dashboard-panel-body">
-            <ul className="dashboard-highlight-list">
-              {taskHighlights.map((item) => {
-                const Icon = item.icon
-                return (
-                  <li key={item.label} className={`dashboard-highlight ${item.accent}`}>
-                    <div className="dashboard-highlight-icon">
-                      <Icon className="dashboard-highlight-icon-svg" />
-                    </div>
-                    <div>
-                      <p className="dashboard-highlight-value">{item.value}</p>
-                      <p className="dashboard-highlight-label">{item.label}</p>
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        </div>
 
-        <div className="dashboard-panel">
-          <div className="dashboard-panel-header">
-            <h2 className="dashboard-panel-title">
-              <Users className="dashboard-panel-icon" /> 快速操作
-            </h2>
-          </div>
-          <div className="dashboard-panel-body">
-            <ul className="dashboard-action-list">
-              {quickActions.map((action) => {
-                const Icon = action.icon
-                return (
-                  <li key={action.title}>
-                    <Link to={action.to} className={`dashboard-action ${action.accent}`}>
-                      <div className="dashboard-action-icon">
-                        <Icon className="dashboard-action-icon-svg" />
-                      </div>
-                      <div>
-                        <p className="dashboard-action-title">{action.title}</p>
-                        <p className="dashboard-action-meta">{action.description}</p>
-                      </div>
-                    </Link>
-                  </li>
-                )
-              })}
-            </ul>
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="flex items-center text-lg font-semibold text-gray-900">
+                <Users className="w-5 h-5 mr-2 text-gray-600" /> 快速操作
+              </h2>
+            </div>
+            <div className="p-6">
+              <ul className="space-y-3">
+                {quickActions.map((action) => {
+                  const Icon = action.icon
+                  const colorClasses = {
+                    'is-blue': 'text-blue-600 bg-blue-50 hover:bg-blue-100',
+                    'is-amber': 'text-amber-600 bg-amber-50 hover:bg-amber-100',
+                    'is-emerald': 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100'
+                  }
+                  return (
+                    <li key={action.title}>
+                      <Link 
+                        to={action.to} 
+                        className={`block p-4 rounded-lg border border-gray-200 transition-colors duration-200 hover:border-gray-300 ${colorClasses[action.accent]}`}
+                      >
+                        <div className="flex items-start space-x-3">
+                          <div className="p-2 bg-white rounded-lg">
+                            <Icon className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-900">{action.title}</p>
+                            <p className="text-sm text-gray-600">{action.description}</p>
+                          </div>
+                        </div>
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
           </div>
         </div>
       </section>
