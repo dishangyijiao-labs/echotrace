@@ -197,15 +197,15 @@ function TaskQueue() {
 
   const getPriorityBadge = (priority) => {
     const priorityMap = {
-      0: 'badge-blue',
-      1: 'badge-yellow'
+      0: 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800',
+      1: 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800'
     }
     const priorityText = {
       0: '普通',
       1: '高'
     }
     return (
-      <span className={`badge ${priorityMap[priority] || 'badge-blue'}`}>
+      <span className={priorityMap[priority] || priorityMap[0]}>
         {priorityText[priority] || '普通'}
       </span>
     )
@@ -238,44 +238,48 @@ function TaskQueue() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="spinner"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
       </div>
     )
   }
 
   return (
-    <div className="task-page">
-      <div className="task-header">
+    <div className="p-6">
+      <div className="flex justify-between items-start mb-6">
         <div>
-          <h1 className="task-title">转录任务队列</h1>
-          <p className="task-subtitle">监控和管理转录任务，实时掌握处理进度。</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">转录任务队列</h1>
+          <p className="text-gray-600">监控和管理转录任务，实时掌握处理进度。</p>
         </div>
-        <div className="task-header-actions">
-          <button type="button" className="task-icon-button" onClick={loadJobs}>
-            <RefreshCw className="task-icon-button-icon" />
+        <div className="flex gap-3">
+          <button type="button" className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" onClick={loadJobs}>
+            <RefreshCw className="w-4 h-4 mr-2" />
             <span>刷新</span>
           </button>
           <button
             type="button"
             onClick={() => setShowCreateModal(true)}
-            className="task-primary-button"
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
-            <Plus className="task-primary-button-icon" />
+            <Plus className="w-4 h-4 mr-2" />
             创建任务
           </button>
         </div>
       </div>
 
-      <div className="task-toolbar">
-        <div className="task-tabs">
+      <div className="mb-6">
+        <div className="flex flex-wrap gap-2">
           {statusTabs.map((tab) => (
             <button
               key={tab.key}
               type="button"
               onClick={() => setFilter(tab.key)}
-              className={`task-tab${filter === tab.key ? ' is-active' : ''}`}
+              className={`inline-flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                filter === tab.key
+                  ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100 border border-transparent'
+              }`}
             >
-              <tab.icon className="task-tab-icon" />
+              <tab.icon className="w-4 h-4 mr-2" />
               <span>{tab.label}</span>
             </button>
           ))}
@@ -283,26 +287,15 @@ function TaskQueue() {
       </div>
 
       {/* Worker Status Card */}
-      <div className="task-worker-status" style={{
-        background: workerStatus.is_running ? '#f0fdf4' : '#fef2f2',
-        border: `1px solid ${workerStatus.is_running ? '#86efac' : '#fecaca'}`,
-        borderRadius: '8px',
-        padding: '1rem',
-        marginBottom: '1.5rem',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '50%',
-            background: workerStatus.is_running ? '#22c55e' : '#ef4444',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
+      <div className={`rounded-lg p-4 mb-6 flex items-center justify-between ${
+        workerStatus.is_running 
+          ? 'bg-green-50 border border-green-200' 
+          : 'bg-red-50 border border-red-200'
+      }`}>
+        <div className="flex items-center gap-4">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+            workerStatus.is_running ? 'bg-green-500' : 'bg-red-500'
+          }`}>
             {workerStatus.is_running ? (
               <Power className="h-5 w-5 text-white" />
             ) : (
@@ -310,25 +303,24 @@ function TaskQueue() {
             )}
           </div>
           <div>
-            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '600' }}>
+            <h3 className="text-base font-semibold text-gray-900 mb-1">
               转录工作进程: {workerStatus.is_running ? '运行中' : '已停止'}
             </h3>
-            <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: '#6b7280' }}>
+            <p className="text-sm text-gray-600">
               {workerStatus.is_running && workerStatus.pid && `PID: ${workerStatus.pid} | `}
               处理中: {workerStatus.processing_count} | 等待中: {workerStatus.pending_count}
             </p>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div className="flex gap-2">
           {!workerStatus.is_running ? (
             <button
               type="button"
               onClick={() => controlWorker('start')}
               disabled={workerLoading}
-              className="task-primary-button"
-              style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
+              className="inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Play className="h-4 w-4" style={{ marginRight: '0.5rem' }} />
+              <Play className="h-4 w-4 mr-2" />
               启动 Worker
             </button>
           ) : (
@@ -337,29 +329,18 @@ function TaskQueue() {
                 type="button"
                 onClick={() => controlWorker('restart')}
                 disabled={workerLoading}
-                className="task-icon-button"
-                style={{ fontSize: '0.875rem' }}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <RotateCw className="h-4 w-4" style={{ marginRight: '0.5rem' }} />
+                <RotateCw className="h-4 w-4 mr-2" />
                 重启
               </button>
               <button
                 type="button"
                 onClick={() => controlWorker('stop')}
                 disabled={workerLoading}
-                style={{
-                  fontSize: '0.875rem',
-                  padding: '0.5rem 1rem',
-                  background: '#ef4444',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center'
-                }}
+                className="inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <PowerOff className="h-4 w-4" style={{ marginRight: '0.5rem' }} />
+                <PowerOff className="h-4 w-4 mr-2" />
                 停止
               </button>
             </>
@@ -368,28 +349,28 @@ function TaskQueue() {
       </div>
 
       {/* Tasks Table */}
-      <div className="task-card">
+      <div className="bg-white shadow rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="task-table">
-            <thead>
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
               <tr>
-                <th>资源文件</th>
-                <th>状态</th>
-                <th>优先级</th>
-                <th>引擎/模型</th>
-                <th>创建者</th>
-                <th>创建时间</th>
-                <th>操作</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">资源文件</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">优先级</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">引擎/模型</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">创建者</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">创建时间</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="bg-white divide-y divide-gray-200">
               {filteredJobs.map((job) => (
-                <tr key={job.id}>
-                  <td>
-                    <div className="flex items-center space-x-2">
+                <tr key={job.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center space-x-3">
                       {getFileIcon(job.media?.media_type)}
                       <div>
-                        <div className="font-medium text-gray-900">
+                        <div className="text-sm font-medium text-gray-900">
                           {job.media?.filename || 'Unknown'}
                         </div>
                         <div className="text-sm text-gray-500">
@@ -398,27 +379,27 @@ function TaskQueue() {
                       </div>
                     </div>
                   </td>
-                  <td>
-                    <div className="task-status">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
                       {getStatusIcon(job.status)}
-                      <span className="ml-2">{getStatusText(job.status)}</span>
+                      <span className="ml-2 text-sm text-gray-900">{getStatusText(job.status)}</span>
                     </div>
                   </td>
-                  <td>{getPriorityBadge(job.priority)}</td>
-                  <td>
+                  <td className="px-6 py-4 whitespace-nowrap">{getPriorityBadge(job.priority)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm">
-                      <div>{job.engine || 'whisper'}</div>
+                      <div className="text-gray-900">{job.engine || 'whisper'}</div>
                       <div className="text-gray-500">{job.engine_model || 'small'}</div>
                     </div>
                   </td>
-                  <td>{job.owner?.username || 'Unknown'}</td>
-                  <td>{new Date(job.created_at).toLocaleString()}</td>
-                  <td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{job.owner?.username || 'Unknown'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(job.created_at).toLocaleString()}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex space-x-2">
                       {job.status === 'failed' && (
                         <button
                           onClick={() => retryJob(job.id)}
-                          className="text-blue-400 hover:text-blue-600"
+                          className="text-blue-600 hover:text-blue-900 p-1 rounded"
                           title="重试"
                         >
                           <RefreshCw className="h-4 w-4" />
@@ -428,7 +409,7 @@ function TaskQueue() {
                       {['pending', 'processing'].includes(job.status) && (
                         <button
                           onClick={() => cancelJob(job.id)}
-                          className="text-red-400 hover:text-red-600"
+                          className="text-red-600 hover:text-red-900 p-1 rounded"
                           title="取消"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -438,7 +419,7 @@ function TaskQueue() {
                       {job.error_message && (
                         <button
                           onClick={() => alert(job.error_message)}
-                          className="text-yellow-400 hover:text-yellow-600"
+                          className="text-yellow-600 hover:text-yellow-900 p-1 rounded"
                           title="查看错误"
                         >
                           <AlertCircle className="h-4 w-4" />
@@ -452,13 +433,13 @@ function TaskQueue() {
           </table>
 
           {filteredJobs.length === 0 && (
-            <div className="task-empty">
-              <Clock className="task-empty-icon" />
-              <h3 className="task-empty-title">暂无任务</h3>
-              <p className="task-empty-text">
+            <div className="text-center py-12">
+              <Clock className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">暂无任务</h3>
+              <p className="text-gray-500 mb-2">
                 开始创建您的第一个转录任务
               </p>
-              <p className="task-empty-note">使用右上角的“创建任务”按钮或在资源管理页面中选择文件创建任务。</p>
+              <p className="text-sm text-gray-400">使用右上角的"创建任务"按钮或在资源管理页面中选择文件创建任务。</p>
             </div>
           )}
         </div>
@@ -467,43 +448,43 @@ function TaskQueue() {
       {/* Create Job Modal */}
       {showCreateModal && (
         <div
-          className="task-modal-overlay"
+          className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4"
           onClick={() => setShowCreateModal(false)}
           role="presentation"
         >
           <div
-            className="task-modal"
+            className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
             onClick={(event) => event.stopPropagation()}
             role="dialog"
             aria-modal="true"
           >
-            <div className="task-modal-header">
+            <div className="flex items-start justify-between p-6 border-b border-gray-200">
               <div>
-                <h3 className="task-modal-title">创建转录任务</h3>
-                <p className="task-modal-subtitle">选择资源文件并配置转录参数，系统将自动排队处理。</p>
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">创建转录任务</h3>
+                <p className="text-sm text-gray-600">选择资源文件并配置转录参数，系统将自动排队处理。</p>
               </div>
               <button
                 type="button"
-                className="task-modal-close"
+                className="text-gray-400 hover:text-gray-600 p-1 rounded"
                 onClick={() => setShowCreateModal(false)}
                 aria-label="关闭"
               >
-                <XCircle className="task-modal-close-icon" />
+                <XCircle className="w-6 h-6" />
               </button>
             </div>
 
-            <div className="task-modal-body">
-              <div className="task-field">
-                <label className="task-field-label" htmlFor="job-resource">选择资源文件 *</label>
+            <div className="p-6">
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="job-resource">选择资源文件 *</label>
                 {loadingResources ? (
-                  <div className="text-center py-4">
-                    <span className="spinner" />
-                    <p className="text-sm text-gray-500 mt-2">加载资源列表...</p>
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2" />
+                    <p className="text-sm text-gray-500">加载资源列表...</p>
                   </div>
                 ) : (
                   <select
                     id="job-resource"
-                    className="task-field-input"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     value={newJob.media_id}
                     onChange={(e) => setNewJob({ ...newJob, media_id: parseInt(e.target.value) })}
                   >
@@ -516,16 +497,16 @@ function TaskQueue() {
                   </select>
                 )}
                 <p className="text-sm text-gray-500 mt-1">
-                  如果没有找到文件，请先到“资源管理”页面上传文件。
+                  如果没有找到文件，请先到"资源管理"页面上传文件。
                 </p>
               </div>
 
-              <div className="task-form-grid">
-                <div className="task-field">
-                  <label className="task-field-label" htmlFor="job-model">模型</label>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="job-model">模型</label>
                   <select
                     id="job-model"
-                    className="task-field-input"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     value={newJob.engine_model}
                     onChange={(e) => setNewJob({ ...newJob, engine_model: e.target.value })}
                   >
@@ -537,11 +518,11 @@ function TaskQueue() {
                   </select>
                 </div>
 
-                <div className="task-field">
-                  <label className="task-field-label" htmlFor="job-device">设备</label>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="job-device">设备</label>
                   <select
                     id="job-device"
-                    className="task-field-input"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     value={newJob.device}
                     onChange={(e) => setNewJob({ ...newJob, device: e.target.value })}
                   >
@@ -551,11 +532,11 @@ function TaskQueue() {
                   </select>
                 </div>
 
-                <div className="task-field">
-                  <label className="task-field-label" htmlFor="job-priority">优先级</label>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="job-priority">优先级</label>
                   <select
                     id="job-priority"
-                    className="task-field-input"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     value={newJob.priority}
                     onChange={(e) => setNewJob({ ...newJob, priority: parseInt(e.target.value) })}
                   >
@@ -565,24 +546,24 @@ function TaskQueue() {
                 </div>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded p-3 mt-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
                 <p className="text-sm text-blue-800">
                   <strong>提示：</strong>任务创建后需要启动 Worker 进程才会开始处理，请确保 Worker 已经运行。
                 </p>
               </div>
             </div>
 
-            <div className="task-modal-footer">
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
               <button
                 type="button"
-                className="task-secondary-button"
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 onClick={() => setShowCreateModal(false)}
               >
                 取消
               </button>
               <button
                 type="button"
-                className="task-primary-button"
+                className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={createJob}
                 disabled={!newJob.media_id}
               >

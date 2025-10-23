@@ -9,7 +9,7 @@ services:
       DJANGO_SECRET_KEY: "changeme-in-prod"
       DJANGO_ALLOWED_HOSTS: "localhost,backend"
       DJANGO_CORS_ALLOW_ALL: "false"
-      DJANGO_CORS_ALLOWED_ORIGINS: "http://localhost:8080"
+      DJANGO_CORS_ALLOWED_ORIGINS: "http://localhost:8080,http://localhost:5173"
       DJANGO_DB_PATH: "/app/data/db.sqlite3"
       DJANGO_MEDIA_ROOT: "/app/media"
     volumes:
