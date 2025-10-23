@@ -177,8 +177,8 @@ function Settings() {
   // 非管理员用户显示权限提示
   if (!user?.is_admin) {
     return (
-      <div className="text-center py-12">
-        <AlertCircle className="mx-auto h-12 w-12 text-yellow-500" />
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <AlertCircle className="w-12 h-12 text-yellow-500 mx-auto" />
         <h3 className="mt-2 text-sm font-medium text-gray-900">访问受限</h3>
         <p className="mt-1 text-sm text-gray-500">
           只有管理员可以访问系统设置
@@ -189,40 +189,40 @@ function Settings() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="spinner"></div>
+      <div className="flex items-center justify-center min-h-64">
+        <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="settings-page">
+    <div className="p-6 space-y-6">
       {/* Header */}
-      <header className="settings-header">
-        <div className="settings-header-meta">
-          <span className="settings-header-eyebrow">
-            <SettingsIcon className="settings-header-icon" />
+      <header className="flex items-start justify-between">
+        <div>
+          <div className="flex items-center text-sm text-gray-500 mb-2">
+            <SettingsIcon className="w-4 h-4 mr-2" />
             系统控制台
-          </span>
-          <h1 className="settings-header-title">系统设置</h1>
-          <p className="settings-header-description">
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900">系统设置</h1>
+          <p className="mt-2 text-lg text-gray-600">
             配置模型、语言、存储与系统运行策略，确保平台稳定高效地服务团队。
           </p>
         </div>
-        <div className="settings-header-actions">
+        <div>
           <button
             onClick={saveSettings}
             disabled={saving}
-            className="btn btn-primary"
+            className="flex items-center px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
           >
             {saving ? (
               <>
-                <div className="spinner-sm"></div>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
                 保存中...
               </>
             ) : (
               <>
-                <Save className="h-4 w-4" />
+                <Save className="w-4 h-4 mr-2" />
                 保存设置
               </>
             )}
@@ -231,9 +231,9 @@ function Settings() {
       </header>
 
       {/* Admin Notice */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
         <div className="flex">
-          <AlertCircle className="h-5 w-5 text-yellow-400" />
+          <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0" />
           <div className="ml-3">
             <h3 className="text-sm font-medium text-yellow-800">
               管理员权限
@@ -250,7 +250,7 @@ function Settings() {
       {/* Success/Error Message */}
       {message && (
         <div
-          className={`settings-feedback rounded-md p-4 ${
+          className={`rounded-lg p-4 ${
           message.type === 'success'
             ? 'bg-green-50 border border-green-200'
             : 'bg-red-50 border border-red-200'
@@ -260,9 +260,9 @@ function Settings() {
         >
           <div className="flex">
             {message.type === 'success' ? (
-              <CheckCircle className="h-5 w-5 text-green-400" />
+              <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
             ) : (
-              <AlertCircle className="h-5 w-5 text-red-400" />
+              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
             )}
             <div className="ml-3">
               <p
@@ -277,295 +277,301 @@ function Settings() {
         </div>
       )}
 
-      <div className="settings-layout">
-        <aside className="settings-sidebar" aria-label="设置导航">
-          <nav className="settings-nav">
+      <div className="flex gap-8">
+        <aside className="w-64 flex-shrink-0" aria-label="设置导航">
+          <nav className="space-y-2">
             {SETTINGS_SECTIONS.map(({ key, label, description, icon: Icon }) => (
               <button
                 key={key}
                 type="button"
-                className={`settings-nav-item${
-                  activeSection === key ? ' is-active' : ''
+                className={`w-full text-left p-4 rounded-lg border transition-colors ${
+                  activeSection === key 
+                    ? 'bg-blue-50 border-blue-200 text-blue-900' 
+                    : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
                 }`}
                 onClick={() => scrollToSection(key)}
               >
-                <Icon className="settings-nav-icon" />
-                <span className="settings-nav-text">
-                  <span className="settings-nav-title">{label}</span>
-                  <span className="settings-nav-description">{description}</span>
-                </span>
+                <div className="flex items-start space-x-3">
+                  <Icon className={`w-5 h-5 mt-0.5 ${
+                    activeSection === key ? 'text-blue-600' : 'text-gray-400'
+                  }`} />
+                  <div>
+                    <div className="font-medium">{label}</div>
+                    <div className="text-sm text-gray-500 mt-1">{description}</div>
+                  </div>
+                </div>
               </button>
             ))}
           </nav>
 
-          <div className="settings-sidebar-card">
-            <h2 className="settings-sidebar-title">保存提示</h2>
-            <p className="settings-sidebar-description">
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <h2 className="text-sm font-medium text-gray-900 mb-2">保存提示</h2>
+            <p className="text-sm text-gray-600 mb-3">
               所有更改将立即影响系统。「保存设置」后会应用到新的任务。
             </p>
-            <p className="settings-sidebar-hint">
+            <p className="text-xs text-gray-500">
               建议在维护窗口或业务低谷时调整关键参数。
             </p>
           </div>
         </aside>
 
-        <div className="settings-content">
+        <div className="flex-1 space-y-8">
           {/* Transcription Settings */}
           <section
             ref={sectionRefs.transcription}
             data-section="transcription"
-            className="settings-section card"
+            className="bg-white rounded-lg border border-gray-200 shadow-sm"
           >
-            <div className="card-header">
-              <h3 className="text-lg font-medium text-gray-900 flex items-center">
-                <Cpu className="h-5 w-5 mr-2" />
-              转录设置
-            </h3>
-          </div>
-          <div className="card-body space-y-4">
-            <div className="form-group">
-              <label className="form-label">默认模型</label>
-              <select
-                className="form-input"
-                value={settings.transcription.default_model}
-                onChange={(e) => updateSetting('transcription', 'default_model', e.target.value)}
-              >
-                <option value="whisper-large">Whisper Large (最高精度)</option>
-                <option value="whisper-medium">Whisper Medium (平衡)</option>
-                <option value="whisper-small">Whisper Small (最快速度)</option>
-              </select>
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                <Cpu className="w-5 h-5 mr-2 text-blue-600" />
+                转录设置
+              </h3>
             </div>
+            <div className="p-6 space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">默认模型</label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={settings.transcription.default_model}
+                  onChange={(e) => updateSetting('transcription', 'default_model', e.target.value)}
+                >
+                  <option value="whisper-large">Whisper Large (最高精度)</option>
+                  <option value="whisper-medium">Whisper Medium (平衡)</option>
+                  <option value="whisper-small">Whisper Small (最快速度)</option>
+                </select>
+              </div>
 
-            <div className="form-group">
-              <label className="form-label">默认语言</label>
-              <select
-                className="form-input"
-                value={settings.transcription.default_language}
-                onChange={(e) => updateSetting('transcription', 'default_language', e.target.value)}
-              >
-                <option value="zh-CN">中文 (简体)</option>
-                <option value="zh-TW">中文 (繁体)</option>
-                <option value="en-US">英语</option>
-                <option value="ja-JP">日语</option>
-                <option value="ko-KR">韩语</option>
-                <option value="auto">自动检测</option>
-              </select>
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">默认语言</label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={settings.transcription.default_language}
+                  onChange={(e) => updateSetting('transcription', 'default_language', e.target.value)}
+                >
+                  <option value="zh-CN">中文 (简体)</option>
+                  <option value="zh-TW">中文 (繁体)</option>
+                  <option value="en-US">英语</option>
+                  <option value="ja-JP">日语</option>
+                  <option value="ko-KR">韩语</option>
+                  <option value="auto">自动检测</option>
+                </select>
+              </div>
 
-            <div className="form-group">
-              <label className="form-label">计算设备</label>
-              <select
-                className="form-input"
-                value={settings.transcription.device}
-                onChange={(e) => updateSetting('transcription', 'device', e.target.value)}
-              >
-                <option value="auto">自动选择</option>
-                <option value="cpu">CPU</option>
-                <option value="cuda">CUDA (NVIDIA GPU)</option>
-                <option value="mps">MPS (Apple Silicon)</option>
-              </select>
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">计算设备</label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={settings.transcription.device}
+                  onChange={(e) => updateSetting('transcription', 'device', e.target.value)}
+                >
+                  <option value="auto">自动选择</option>
+                  <option value="cpu">CPU</option>
+                  <option value="cuda">CUDA (NVIDIA GPU)</option>
+                  <option value="mps">MPS (Apple Silicon)</option>
+                </select>
+              </div>
 
-            <div className="form-group">
-              <label className="form-label">并发任务数</label>
-              <input
-                type="number"
-                min="1"
-                max="10"
-                className="form-input"
-                value={settings.transcription.concurrency}
-                onChange={(e) => updateSetting('transcription', 'concurrency', parseInt(e.target.value))}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                同时处理的转录任务数量，建议根据硬件性能调整
-              </p>
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">并发任务数</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="10"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={settings.transcription.concurrency}
+                  onChange={(e) => updateSetting('transcription', 'concurrency', parseInt(e.target.value))}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  同时处理的转录任务数量，建议根据硬件性能调整
+                </p>
+              </div>
 
-            <div className="form-group">
-              <label className="form-label">转录质量</label>
-              <select
-                className="form-input"
-                value={settings.transcription.quality}
-                onChange={(e) => updateSetting('transcription', 'quality', e.target.value)}
-              >
-                <option value="high">高质量 (慢)</option>
-                <option value="medium">中等质量 (平衡)</option>
-                <option value="fast">快速 (低质量)</option>
-              </select>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">转录质量</label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={settings.transcription.quality}
+                  onChange={(e) => updateSetting('transcription', 'quality', e.target.value)}
+                >
+                  <option value="high">高质量 (慢)</option>
+                  <option value="medium">中等质量 (平衡)</option>
+                  <option value="fast">快速 (低质量)</option>
+                </select>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
 
           {/* Storage Settings */}
           <section
             ref={sectionRefs.storage}
             data-section="storage"
-            className="settings-section card"
+            className="bg-white rounded-lg border border-gray-200 shadow-sm"
           >
-            <div className="card-header">
-              <h3 className="text-lg font-medium text-gray-900 flex items-center">
-                <HardDrive className="h-5 w-5 mr-2" />
-              存储设置
-            </h3>
-          </div>
-          <div className="card-body space-y-4">
-            <div className="form-group">
-              <label className="flex items-center">
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                <HardDrive className="w-5 h-5 mr-2 text-green-600" />
+                存储设置
+              </h3>
+            </div>
+            <div className="p-6 space-y-6">
+              <div>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    checked={settings.storage.nas_enabled}
+                    onChange={(e) => updateSetting('storage', 'nas_enabled', e.target.checked)}
+                  />
+                  <span className="ml-2 text-sm text-gray-700">启用NAS存储</span>
+                </label>
+              </div>
+
+              {settings.storage.nas_enabled && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">NAS主机地址</label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="192.168.1.100"
+                      value={settings.storage.nas_host}
+                      onChange={(e) => updateSetting('storage', 'nas_host', e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">NAS存储路径</label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="/volume1/media"
+                      value={settings.storage.nas_path}
+                      onChange={(e) => updateSetting('storage', 'nas_path', e.target.value)}
+                    />
+                  </div>
+
+                  <button
+                    onClick={testNasConnection}
+                    className="flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <Server className="w-4 h-4 mr-2" />
+                    测试NAS连接
+                  </button>
+                </>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">本地存储路径</label>
                 <input
-                  type="checkbox"
-                  className="form-checkbox"
-                  checked={settings.storage.nas_enabled}
-                  onChange={(e) => updateSetting('storage', 'nas_enabled', e.target.checked)}
+                  type="text"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={settings.storage.local_storage_path}
+                  onChange={(e) => updateSetting('storage', 'local_storage_path', e.target.value)}
                 />
-                <span className="ml-2 text-sm text-gray-700">启用NAS存储</span>
-              </label>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">最大文件大小 (MB)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="1000"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={settings.storage.max_file_size}
+                  onChange={(e) => updateSetting('storage', 'max_file_size', parseInt(e.target.value))}
+                />
+              </div>
             </div>
-
-            {settings.storage.nas_enabled && (
-              <>
-                <div className="form-group">
-                  <label className="form-label">NAS主机地址</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="192.168.1.100"
-                    value={settings.storage.nas_host}
-                    onChange={(e) => updateSetting('storage', 'nas_host', e.target.value)}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">NAS存储路径</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="/volume1/media"
-                    value={settings.storage.nas_path}
-                    onChange={(e) => updateSetting('storage', 'nas_path', e.target.value)}
-                  />
-                </div>
-
-                <button
-                  onClick={testNasConnection}
-                  className="btn btn-secondary"
-                >
-                  <Server className="h-4 w-4 mr-2" />
-                  测试NAS连接
-                </button>
-              </>
-            )}
-
-            <div className="form-group">
-              <label className="form-label">本地存储路径</label>
-              <input
-                type="text"
-                className="form-input"
-                value={settings.storage.local_storage_path}
-                onChange={(e) => updateSetting('storage', 'local_storage_path', e.target.value)}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">最大文件大小 (MB)</label>
-              <input
-                type="number"
-                min="1"
-                max="1000"
-                className="form-input"
-                value={settings.storage.max_file_size}
-                onChange={(e) => updateSetting('storage', 'max_file_size', parseInt(e.target.value))}
-              />
-            </div>
-          </div>
-        </section>
+          </section>
 
           {/* System Settings */}
           <section
             ref={sectionRefs.system}
             data-section="system"
-            className="settings-section card"
+            className="bg-white rounded-lg border border-gray-200 shadow-sm"
           >
-            <div className="card-header">
-              <h3 className="text-lg font-medium text-gray-900 flex items-center">
-                <Zap className="h-5 w-5 mr-2" />
-              系统设置
-            </h3>
-          </div>
-          <div className="card-body space-y-4">
-            <div className="form-group">
-              <label className="form-label">最大并发任务数</label>
-              <input
-                type="number"
-                min="1"
-                max="20"
-                className="form-input"
-                value={settings.system.max_concurrent_tasks}
-                onChange={(e) => updateSetting('system', 'max_concurrent_tasks', parseInt(e.target.value))}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                系统同时处理的最大任务数量
-              </p>
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                <Zap className="w-5 h-5 mr-2 text-yellow-600" />
+                系统设置
+              </h3>
             </div>
-
-            <div className="form-group">
-              <label className="form-label">自动清理天数</label>
-              <input
-                type="number"
-                min="1"
-                max="365"
-                className="form-input"
-                value={settings.system.auto_cleanup_days}
-                onChange={(e) => updateSetting('system', 'auto_cleanup_days', parseInt(e.target.value))}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                自动删除多少天前的临时文件
-              </p>
-            </div>
-
-            <div className="form-group">
-              <label className="flex items-center">
+            <div className="p-6 space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">最大并发任务数</label>
                 <input
-                  type="checkbox"
-                  className="form-checkbox"
-                  checked={settings.system.enable_notifications}
-                  onChange={(e) => updateSetting('system', 'enable_notifications', e.target.checked)}
+                  type="number"
+                  min="1"
+                  max="20"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={settings.system.max_concurrent_tasks}
+                  onChange={(e) => updateSetting('system', 'max_concurrent_tasks', parseInt(e.target.value))}
                 />
-                <span className="ml-2 text-sm text-gray-700">启用系统通知</span>
-              </label>
-            </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  系统同时处理的最大任务数量
+                </p>
+              </div>
 
-            <div className="form-group">
-              <label className="form-label">日志级别</label>
-              <select
-                className="form-input"
-                value={settings.system.log_level}
-                onChange={(e) => updateSetting('system', 'log_level', e.target.value)}
-              >
-                <option value="DEBUG">DEBUG (详细)</option>
-                <option value="INFO">INFO (信息)</option>
-                <option value="WARNING">WARNING (警告)</option>
-                <option value="ERROR">ERROR (错误)</option>
-              </select>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">自动清理天数</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="365"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={settings.system.auto_cleanup_days}
+                  onChange={(e) => updateSetting('system', 'auto_cleanup_days', parseInt(e.target.value))}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  自动删除多少天前的临时文件
+                </p>
+              </div>
+
+              <div>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    checked={settings.system.enable_notifications}
+                    onChange={(e) => updateSetting('system', 'enable_notifications', e.target.checked)}
+                  />
+                  <span className="ml-2 text-sm text-gray-700">启用系统通知</span>
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">日志级别</label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={settings.system.log_level}
+                  onChange={(e) => updateSetting('system', 'log_level', e.target.value)}
+                >
+                  <option value="DEBUG">DEBUG (详细)</option>
+                  <option value="INFO">INFO (信息)</option>
+                  <option value="WARNING">WARNING (警告)</option>
+                  <option value="ERROR">ERROR (错误)</option>
+                </select>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
 
           {/* Security Settings */}
           <section
             ref={sectionRefs.security}
             data-section="security"
-            className="settings-section card"
+            className="bg-white rounded-lg border border-gray-200 shadow-sm"
           >
-            <div className="card-header">
-              <h3 className="text-lg font-medium text-gray-900 flex items-center">
-                <Shield className="h-5 w-5 mr-2" />
-              安全设置
-            </h3>
-          </div>
-            <div className="card-body space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                <Shield className="w-5 h-5 mr-2 text-purple-600" />
+                安全设置
+              </h3>
+            </div>
+            <div className="p-6 space-y-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex">
-                  <AlertCircle className="h-5 w-5 text-blue-400" />
+                  <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0" />
                   <div className="ml-3">
                     <h4 className="text-sm font-medium text-blue-800">
                       安全提示

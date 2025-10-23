@@ -171,12 +171,12 @@ function Resources() {
 
   const getFileIcon = (fileType) => {
     if (fileType?.startsWith('audio/')) {
-      return <FileAudio className="resources-card-icon" />
+      return <FileAudio className="w-8 h-8 text-blue-600" />
     }
     if (fileType?.startsWith('video/')) {
-      return <FileVideo className="resources-card-icon" />
+      return <FileVideo className="w-8 h-8 text-purple-600" />
     }
-    return <File className="resources-card-icon" />
+    return <File className="w-8 h-8 text-gray-600" />
   }
 
   const formatFileSize = (bytes) => {
@@ -210,53 +210,61 @@ function Resources() {
 
   if (loading) {
     return (
-      <div className="resources-loading">
-        <span className="spinner" />
+      <div className="flex items-center justify-center min-h-64">
+        <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="resources-page">
-      <div className="resources-header">
+    <div className="p-6 space-y-6">
+      <div className="flex items-start justify-between">
         <div>
-          <h1 className="resources-title">资源管理</h1>
-          <p className="resources-subtitle">上传、整理和标记媒体文件，为后续的转录和搜索做好准备。</p>
+          <h1 className="text-3xl font-bold text-gray-900">资源管理</h1>
+          <p className="mt-2 text-lg text-gray-600">上传、整理和标记媒体文件，为后续的转录和搜索做好准备。</p>
         </div>
-        <div className="resources-actions">
-          <button type="button" className="resources-icon-button" onClick={loadResources}>
-            <RefreshCw className="resources-icon-button-icon" />
+        <div className="flex items-center space-x-3">
+          <button 
+            type="button" 
+            className="flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            onClick={loadResources}
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
             <span>刷新列表</span>
           </button>
           <button
             type="button"
-            className="resources-primary-button"
+            className="flex items-center px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
             onClick={() => setShowUploadModal(true)}
           >
-            <Upload className="resources-primary-button-icon" />
+            <Upload className="w-4 h-4 mr-2" />
             上传文件
           </button>
         </div>
       </div>
 
-      <div className="resources-toolbar">
-        <div className="resources-search">
-          <Search className="resources-search-icon" />
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0 sm:space-x-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
             placeholder="搜索文件名或标签..."
-            className="resources-search-input"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="resources-tabs">
+        <div className="flex bg-gray-100 rounded-lg p-1">
           {TYPE_TABS.map((tab) => (
             <button
               key={tab.key}
               type="button"
               onClick={() => setFilter(tab.key)}
-              className={`resources-tab${filter === tab.key ? ' is-active' : ''}`}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                filter === tab.key
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
             >
               <span>{tab.label}</span>
             </button>
@@ -264,52 +272,54 @@ function Resources() {
         </div>
       </div>
 
-      <div className="resources-grid">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredResources.map((resource) => (
-          <article key={resource.id} className="resources-card">
-            <header className="resources-card-header">
-              <div className="resources-card-icon-wrap">
-                {getFileIcon(resource.file_type)}
-              </div>
-              <div>
-                <h2 className="resources-card-title">{resource.filename}</h2>
-                <p className="resources-card-meta">
-                  {formatFileSize(resource.file_size)} · {formatDuration(resource.duration)}
-                </p>
+          <article key={resource.id} className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+            <header className="p-6 border-b border-gray-200">
+              <div className="flex items-start space-x-4">
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  {getFileIcon(resource.file_type)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-lg font-semibold text-gray-900 truncate">{resource.filename}</h2>
+                  <p className="text-sm text-gray-500">
+                    {formatFileSize(resource.file_size)} · {formatDuration(resource.duration)}
+                  </p>
+                </div>
               </div>
             </header>
 
-            <div className="resources-card-body">
-              <dl className="resources-card-info">
-                <div>
-                  <dt>上传时间</dt>
-                  <dd>{new Date(resource.created_at).toLocaleString()}</dd>
+            <div className="p-6">
+              <dl className="space-y-3">
+                <div className="flex justify-between">
+                  <dt className="text-sm font-medium text-gray-500">上传时间</dt>
+                  <dd className="text-sm text-gray-900">{new Date(resource.created_at).toLocaleString()}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-sm font-medium text-gray-500">状态</dt>
+                  <dd className="text-sm text-gray-900">{resource.status === 'available' ? '可用' : resource.status}</dd>
                 </div>
                 <div>
-                  <dt>状态</dt>
-                  <dd>{resource.status === 'available' ? '可用' : resource.status}</dd>
-                </div>
-                <div>
-                  <dt>标签</dt>
+                  <dt className="text-sm font-medium text-gray-500 mb-2">标签</dt>
                   <dd>
-                    <div className="resources-tags">
+                    <div className="flex flex-wrap gap-2">
                       {resource.tags?.length ? (
                         resource.tags.map((tag) => (
-                          <span key={tag.id} className="resources-tag">
-                            <Tag className="resources-tag-icon" />
+                          <span key={tag.id} className="inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                            <Tag className="w-3 h-3 mr-1" />
                             {tag.name}
                             <button
                               type="button"
-                              className="resources-tag-remove"
+                              className="ml-1 p-0.5 text-blue-600 hover:text-blue-800 rounded-full hover:bg-blue-200"
                               onClick={() => removeTag(resource.id, tag.id)}
                               aria-label={`移除标签 ${tag.name}`}
                             >
-                              <X className="resources-tag-remove-icon" />
+                              <X className="w-3 h-3" />
                             </button>
                           </span>
                         ))
                       ) : (
-                        <span className="resources-tag-empty">暂无标签</span>
+                        <span className="text-sm text-gray-400">暂无标签</span>
                       )}
                     </div>
                   </dd>
@@ -317,31 +327,31 @@ function Resources() {
               </dl>
             </div>
 
-            <footer className="resources-card-footer">
-              <div className="resources-card-actions">
+            <footer className="p-6 pt-0 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
                 <button
                   type="button"
-                  className="resources-card-button is-primary"
+                  className="flex items-center px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
                   onClick={() => openDetailModal(resource)}
                 >
-                  <Eye className="resources-card-button-icon" />
+                  <Eye className="w-4 h-4 mr-1" />
                   详情
                 </button>
                 <button
                   type="button"
-                  className="resources-card-button"
+                  className="flex items-center px-3 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
                   onClick={() => deleteResource(resource.id)}
                 >
-                  <Trash2 className="resources-card-button-icon" />
+                  <Trash2 className="w-4 h-4 mr-1" />
                   删除
                 </button>
               </div>
               <button
                 type="button"
-                className="resources-card-button"
+                className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                 onClick={() => downloadResource(resource.id, resource.filename)}
               >
-                <Download className="resources-card-button-icon" />
+                <Download className="w-4 h-4 mr-1" />
                 下载
               </button>
             </footer>
@@ -349,13 +359,13 @@ function Resources() {
         ))}
 
         {!filteredResources.length && (
-          <div className="resources-empty">
-            <Upload className="resources-empty-icon" />
-            <h3 className="resources-empty-title">暂无资源</h3>
-            <p className="resources-empty-text">
+          <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
+            <Upload className="w-12 h-12 text-gray-400 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">暂无资源</h3>
+            <p className="text-gray-500 max-w-md">
               {searchTerm || filter !== 'all'
                 ? '没有找到匹配的资源，请调整搜索或筛选条件。'
-                : '点击右上角的“上传文件”按钮，导入音视频以供转录使用。'}
+                : '点击右上角的"上传文件"按钮，导入音视频以供转录使用。'}
             </p>
           </div>
         )}
@@ -363,69 +373,74 @@ function Resources() {
 
       {showUploadModal && (
         <div
-          className="resources-modal-overlay"
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
           role="presentation"
           onClick={() => setShowUploadModal(false)}
         >
           <div
-            className="resources-modal"
+            className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
             role="dialog"
             aria-modal="true"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="resources-modal-header">
+            <div className="flex items-start justify-between p-6 border-b border-gray-200">
               <div>
-                <h3 className="resources-modal-title">上传新资源</h3>
-                <p className="resources-modal-subtitle">支持批量上传音频、视频文件，系统会自动识别格式和时长。</p>
+                <h3 className="text-lg font-semibold text-gray-900">上传新资源</h3>
+                <p className="mt-1 text-sm text-gray-600">支持批量上传音频、视频文件，系统会自动识别格式和时长。</p>
               </div>
               <button
                 type="button"
-                className="resources-modal-close"
+                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
                 onClick={() => setShowUploadModal(false)}
                 aria-label="关闭"
               >
-                <X className="resources-modal-close-icon" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="resources-modal-body">
+            <div className="p-6">
               {uploadError && (
-                <div className="alert alert-error" style={{ marginBottom: '1rem', padding: '0.75rem', backgroundColor: '#fee', border: '1px solid #fcc', borderRadius: '0.5rem', color: '#c00' }}>
-                  <AlertCircle style={{ display: 'inline-block', width: '1rem', height: '1rem', marginRight: '0.5rem' }} />
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center text-red-700">
+                  <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
                   {uploadError}
                 </div>
               )}
               {uploadSuccess && (
-                <div className="alert alert-success" style={{ marginBottom: '1rem', padding: '0.75rem', backgroundColor: '#efe', border: '1px solid #cfc', borderRadius: '0.5rem', color: '#090' }}>
-                  <CheckCircle style={{ display: 'inline-block', width: '1rem', height: '1rem', marginRight: '0.5rem' }} />
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center text-green-700">
+                  <CheckCircle className="w-4 h-4 mr-2 flex-shrink-0" />
                   {uploadSuccess}
                 </div>
               )}
               <div
-                className={`resources-dropzone${uploading ? ' is-uploading' : ''}`}
+                className={`border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-400 transition-colors ${
+                  uploading ? 'opacity-60 cursor-not-allowed' : ''
+                }`}
                 onClick={() => !uploading && fileInputRef.current?.click()}
-                style={{ cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.6 : 1 }}
               >
-                <Upload className="resources-dropzone-icon" />
-                <p className="resources-dropzone-title">点击或拖拽文件到这里上传</p>
-                <p className="resources-dropzone-text">支持音频、视频等多种媒体格式，单个文件最大 2GB。</p>
-                {uploading && <span className="spinner" />}
+                <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-lg font-medium text-gray-900 mb-2">点击或拖拽文件到这里上传</p>
+                <p className="text-sm text-gray-600">支持音频、视频等多种媒体格式，单个文件最大 2GB。</p>
+                {uploading && (
+                  <div className="mt-4">
+                    <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto" />
+                  </div>
+                )}
                 <input
                   ref={fileInputRef}
                   type="file"
                   multiple
                   accept="audio/*,video/*"
-                  className="resources-file-input"
+                  className="hidden"
                   onChange={(event) => handleFileUpload(event.target.files)}
                   disabled={uploading}
                 />
               </div>
             </div>
 
-            <div className="resources-modal-footer">
+            <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
               <button
                 type="button"
-                className="resources-secondary-button"
+                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 onClick={() => setShowUploadModal(false)}
                 disabled={uploading}
               >
@@ -433,11 +448,11 @@ function Resources() {
               </button>
               <button
                 type="button"
-                className="resources-primary-button"
+                className="flex items-center px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
               >
-                <Upload className="resources-primary-button-icon" />
+                <Upload className="w-4 h-4 mr-2" />
                 选择文件
               </button>
             </div>
@@ -447,84 +462,84 @@ function Resources() {
 
       {selectedResource && (
         <div
-          className="resources-modal-overlay"
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
           role="presentation"
           onClick={closeDetailModal}
         >
           <div
-            className="resources-detail-modal"
+            className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
             role="dialog"
             aria-modal="true"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="resources-modal-header">
+            <div className="flex items-start justify-between p-6 border-b border-gray-200">
               <div>
-                <h3 className="resources-modal-title">资源详情</h3>
-                <p className="resources-modal-subtitle">查看文件属性、标签和处理状态，支持快速下载或删除。</p>
+                <h3 className="text-lg font-semibold text-gray-900">资源详情</h3>
+                <p className="mt-1 text-sm text-gray-600">查看文件属性、标签和处理状态，支持快速下载或删除。</p>
               </div>
               <button
                 type="button"
-                className="resources-modal-close"
+                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
                 onClick={closeDetailModal}
                 aria-label="关闭"
               >
-                <X className="resources-modal-close-icon" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="resources-detail-body">
-              <section className="resources-detail-section">
-                <h4>文件信息</h4>
-                <dl>
+            <div className="p-6 space-y-6">
+              <section>
+                <h4 className="text-base font-semibold text-gray-900 mb-4">文件信息</h4>
+                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <dt>文件名</dt>
-                    <dd>{selectedResource.filename}</dd>
+                    <dt className="text-sm font-medium text-gray-500">文件名</dt>
+                    <dd className="mt-1 text-sm text-gray-900">{selectedResource.filename}</dd>
                   </div>
                   <div>
-                    <dt>文件大小</dt>
-                    <dd>{formatFileSize(selectedResource.file_size)}</dd>
+                    <dt className="text-sm font-medium text-gray-500">文件大小</dt>
+                    <dd className="mt-1 text-sm text-gray-900">{formatFileSize(selectedResource.file_size)}</dd>
                   </div>
                   <div>
-                    <dt>时长</dt>
-                    <dd>{formatDuration(selectedResource.duration)}</dd>
+                    <dt className="text-sm font-medium text-gray-500">时长</dt>
+                    <dd className="mt-1 text-sm text-gray-900">{formatDuration(selectedResource.duration)}</dd>
                   </div>
                   <div>
-                    <dt>创建时间</dt>
-                    <dd>{new Date(selectedResource.created_at).toLocaleString()}</dd>
+                    <dt className="text-sm font-medium text-gray-500">创建时间</dt>
+                    <dd className="mt-1 text-sm text-gray-900">{new Date(selectedResource.created_at).toLocaleString()}</dd>
                   </div>
-                  <div>
-                    <dt>状态</dt>
-                    <dd>{selectedResource.status || 'Unknown'}</dd>
+                  <div className="sm:col-span-2">
+                    <dt className="text-sm font-medium text-gray-500">状态</dt>
+                    <dd className="mt-1 text-sm text-gray-900">{selectedResource.status || 'Unknown'}</dd>
                   </div>
                 </dl>
               </section>
 
-              <section className="resources-detail-section">
-                <h4>标签管理</h4>
-                <div className="resources-tags">
+              <section>
+                <h4 className="text-base font-semibold text-gray-900 mb-4">标签管理</h4>
+                <div className="flex flex-wrap gap-2 mb-4">
                   {selectedResource.tags?.length ? (
                     selectedResource.tags.map((tag) => (
-                      <span key={tag.id} className="resources-tag">
-                        <Tag className="resources-tag-icon" />
+                      <span key={tag.id} className="inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                        <Tag className="w-3 h-3 mr-1" />
                         {tag.name}
                         <button
                           type="button"
-                          className="resources-tag-remove"
+                          className="ml-1 p-0.5 text-blue-600 hover:text-blue-800 rounded-full hover:bg-blue-200"
                           onClick={() => removeTag(selectedResource.id, tag.id)}
                           aria-label={`移除标签 ${tag.name}`}
                         >
-                          <X className="resources-tag-remove-icon" />
+                          <X className="w-3 h-3" />
                         </button>
                       </span>
                     ))
                   ) : (
-                    <span className="resources-tag-empty">暂无标签</span>
+                    <span className="text-sm text-gray-400">暂无标签</span>
                   )}
                 </div>
-                <div className="resources-tag-input">
+                <div className="flex space-x-2">
                   <input
                     type="text"
-                    className="resources-search-input"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="输入标签名称后回车添加"
                     value={newTag}
                     onChange={(e) => setNewTag(e.target.value)}
@@ -537,42 +552,43 @@ function Resources() {
                   />
                   <button
                     type="button"
-                    className="resources-icon-button"
+                    className="flex items-center px-3 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
                     onClick={() => addTag(selectedResource.id, newTag)}
                   >
-                    <Plus className="resources-icon-button-icon" />
+                    <Plus className="w-4 h-4 mr-1" />
                     添加标签
                   </button>
                 </div>
               </section>
             </div>
 
-            <div className="resources-modal-footer">
+            <div className="flex items-center justify-between p-6 border-t border-gray-200">
               <button
                 type="button"
-                className="resources-secondary-button"
+                className="flex items-center px-4 py-2 text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
                 onClick={() => deleteResource(selectedResource.id)}
               >
-                <Trash2 className="resources-primary-button-icon" />
+                <Trash2 className="w-4 h-4 mr-2" />
                 删除资源
               </button>
-              <button
-                type="button"
-                className="resources-primary-button"
-                onClick={() => createTranscriptionJob(selectedResource.id)}
-                style={{ marginLeft: '0.5rem' }}
-              >
-                <Plus className="resources-primary-button-icon" />
-                创建转录任务
-              </button>
-              <button
-                type="button"
-                className="resources-primary-button"
-                onClick={() => downloadResource(selectedResource.id, selectedResource.filename)}
-              >
-                <Download className="resources-primary-button-icon" />
-                下载副本
-              </button>
+              <div className="flex items-center space-x-3">
+                <button
+                  type="button"
+                  className="flex items-center px-4 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
+                  onClick={() => createTranscriptionJob(selectedResource.id)}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  创建转录任务
+                </button>
+                <button
+                  type="button"
+                  className="flex items-center px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                  onClick={() => downloadResource(selectedResource.id, selectedResource.filename)}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  下载副本
+                </button>
+              </div>
             </div>
           </div>
         </div>
