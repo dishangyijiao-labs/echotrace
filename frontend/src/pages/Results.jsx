@@ -119,13 +119,13 @@ function Results() {
   const getStatusIcon = (status) => {
     switch (status) {
       case 'completed':
-        return <CheckCircle className="results-status-icon" />
+        return <CheckCircle className="w-4 h-4" />
       case 'processing':
-        return <Clock className="results-status-icon" />
+        return <Clock className="w-4 h-4" />
       case 'failed':
-        return <AlertCircle className="results-status-icon" />
+        return <AlertCircle className="w-4 h-4" />
       default:
-        return <Clock className="results-status-icon" />
+        return <Clock className="w-4 h-4" />
     }
   }
 
@@ -149,136 +149,146 @@ function Results() {
 
   if (loading) {
     return (
-      <div className="results-loading">
-        <span className="spinner" />
+      <div className="flex items-center justify-center min-h-64">
+        <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="results-page">
-      <div className="results-header">
+    <div className="p-6 space-y-6">
+      <div className="flex items-start justify-between">
         <div>
-          <h1 className="results-title">转录结果</h1>
-          <p className="results-subtitle">
+          <h1 className="text-3xl font-bold text-gray-900">转录结果</h1>
+          <p className="mt-2 text-lg text-gray-600">
             查看、编辑和导出转录文本，随时掌握处理状态与历史版本。
           </p>
         </div>
-        <div className="results-actions">
-          <button type="button" className="results-icon-button" onClick={loadResults}>
-            <RefreshCw className="results-icon-button-icon" />
+        <div className="flex items-center space-x-3">
+          <button type="button" className="flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors" onClick={loadResults}>
+            <RefreshCw className="w-4 h-4 mr-2" />
             <span>刷新列表</span>
           </button>
-          <Link to="/resources" className="results-primary-button">
-            <UploadCloud className="results-primary-button-icon" />
+          <Link to="/resources" className="flex items-center px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
+            <UploadCloud className="w-4 h-4 mr-2" />
             上传文件
           </Link>
         </div>
       </div>
 
-      <div className="results-toolbar">
-        <div className="results-search">
-          <Search className="results-search-icon" />
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
             placeholder="搜索文件名或内容..."
-            className="results-search-input"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="results-tabs">
+        <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
           {STATUS_TABS.map((tab) => (
             <button
               key={tab.key}
               type="button"
               onClick={() => setFilter(tab.key)}
-              className={`results-tab${filter === tab.key ? ' is-active' : ''}`}
+              className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                filter === tab.key
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
             >
-              <tab.icon className="results-tab-icon" />
+              <tab.icon className="w-4 h-4 mr-2" />
               <span>{tab.label}</span>
             </button>
           ))}
         </div>
       </div>
 
-      <div className="results-card">
-        <div className="results-table-container">
-          <table className="results-table">
-            <thead>
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
               <tr>
-                <th>文件信息</th>
-                <th>状态</th>
-                <th>语言</th>
-                <th>时长</th>
-                <th>创建时间</th>
-                <th>关联资源</th>
-                <th>版本</th>
-                <th>操作</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">文件信息</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">语言</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">时长</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">创建时间</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">关联资源</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">版本</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="bg-white divide-y divide-gray-200">
               {filteredResults.map((result) => (
-                <tr key={result.id}>
-                  <td>
-                    <div className="results-file">
-                      <div className="results-file-name">
-                        <FileText className="results-file-icon" />
-                        <span>{result.filename}</span>
+                <tr key={result.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center">
+                        <FileText className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
+                        <span className="text-sm font-medium text-gray-900 truncate">{result.filename}</span>
                       </div>
-                      <p className="results-snippet">{getContentPreview(result.content)}</p>
+                      <p className="text-sm text-gray-500 line-clamp-2">{getContentPreview(result.content)}</p>
                     </div>
                   </td>
-                  <td>
-                    <span className={`results-status ${STATUS_CLASS_MAP[result.status] || ''}`}>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      result.status === 'completed' 
+                        ? 'bg-green-100 text-green-800' 
+                        : result.status === 'processing'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}>
                       {getStatusIcon(result.status)}
-                      <span>{getStatusText(result.status)}</span>
+                      <span className="ml-1">{getStatusText(result.status)}</span>
                     </span>
                   </td>
-                  <td>{result.language || 'zh-CN'}</td>
-                  <td>{result.duration ? `${Math.round(result.duration / 60)} 分钟` : '-'}</td>
-                  <td>{new Date(result.created_at).toLocaleString()}</td>
-                  <td>
+                  <td className="px-6 py-4 text-sm text-gray-900">{result.language || 'zh-CN'}</td>
+                  <td className="px-6 py-4 text-sm text-gray-900">{result.duration ? `${Math.round(result.duration / 60)} 分钟` : '-'}</td>
+                  <td className="px-6 py-4 text-sm text-gray-900">{new Date(result.created_at).toLocaleString()}</td>
+                  <td className="px-6 py-4">
                     {result.resource ? (
-                      <Link to={`/resources/${result.resource.id}`} className="results-resource-link">
+                      <Link to={`/resources/${result.resource.id}`} className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800">
                         {result.resource.filename}
-                        <ExternalLink className="results-resource-icon" />
+                        <ExternalLink className="w-3 h-3 ml-1" />
                       </Link>
                     ) : (
-                      <span className="results-resource-empty">无</span>
+                      <span className="text-sm text-gray-400">无</span>
                     )}
                   </td>
-                  <td>
-                    <span className="results-version">v{result.version || 1}</span>
+                  <td className="px-6 py-4">
+                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-800">v{result.version || 1}</span>
                   </td>
-                  <td>
-                    <div className="results-row-actions">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center space-x-2">
                       {result.status === 'completed' && (
                         <>
                           <button
                             type="button"
-                            className="results-row-button is-edit"
+                            className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
                             onClick={() => startEditing(result)}
                             title="编辑"
                           >
-                            <Edit className="results-row-button-icon" />
+                            <Edit className="w-4 h-4" />
                           </button>
                           <button
                             type="button"
-                            className="results-row-button is-download"
+                            className="p-1 text-gray-400 hover:text-green-600 transition-colors"
                             onClick={() => downloadTranscript(result.id, result.filename)}
                             title="下载"
                           >
-                            <Download className="results-row-button-icon" />
+                            <Download className="w-4 h-4" />
                           </button>
                         </>
                       )}
                       <Link
                         to={`/results/${result.id}`}
-                        className="results-row-button is-view"
+                        className="p-1 text-gray-400 hover:text-purple-600 transition-colors"
                         title="查看详情"
                       >
-                        <Eye className="results-row-button-icon" />
+                        <Eye className="w-4 h-4" />
                       </Link>
                     </div>
                   </td>
@@ -288,16 +298,16 @@ function Results() {
           </table>
 
           {filteredResults.length === 0 && (
-            <div className="results-empty">
-              <FileText className="results-empty-icon" />
-              <h3 className="results-empty-title">暂无转录结果</h3>
-              <p className="results-empty-text">
+            <div className="text-center py-12">
+              <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">暂无转录结果</h3>
+              <p className="text-sm text-gray-500 mb-4">
                 {searchTerm || filter !== 'all'
                   ? '没有找到匹配的结果，请调整搜索或状态筛选。'
                   : '上传音视频文件后，系统会生成对应的转录内容。'}
               </p>
               {!searchTerm && filter === 'all' && (
-                <p className="results-empty-note">使用右上角的“上传文件”按钮，开始新的转录任务。</p>
+                <p className="text-xs text-gray-400">使用右上角的"上传文件"按钮，开始新的转录任务。</p>
               )}
             </div>
           )}
@@ -306,48 +316,48 @@ function Results() {
 
       {editingResult && (
         <div
-          className="results-modal-overlay"
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
           role="presentation"
           onClick={cancelEditing}
         >
           <div
-            className="results-modal"
+            className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
             role="dialog"
             aria-modal="true"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="results-modal-header">
+            <div className="flex items-start justify-between p-6 border-b border-gray-200">
               <div>
-                <h3 className="results-modal-title">编辑转录文本</h3>
-                <p className="results-modal-subtitle">保存后会生成新版本，原始内容仍可在版本历史中查看。</p>
+                <h3 className="text-lg font-semibold text-gray-900">编辑转录文本</h3>
+                <p className="mt-1 text-sm text-gray-500">保存后会生成新版本，原始内容仍可在版本历史中查看。</p>
               </div>
               <button
                 type="button"
-                className="results-modal-close"
+                className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
                 onClick={cancelEditing}
                 aria-label="关闭"
               >
-                <X className="results-modal-close-icon" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="results-modal-body">
-              <label className="results-field-label" htmlFor="results-content">转录内容</label>
+            <div className="p-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="results-content">转录内容</label>
               <textarea
                 id="results-content"
-                className="results-modal-textarea"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
                 rows={18}
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
                 placeholder="编辑当前转录文本..."
               />
-              <p className="results-modal-tip">提示：建议先在左侧备份原文，再进行大幅修改。</p>
+              <p className="mt-2 text-xs text-gray-500">提示：建议先在左侧备份原文，再进行大幅修改。</p>
             </div>
 
-            <div className="results-modal-footer">
+            <div className="flex items-center justify-end space-x-3 px-6 py-4 bg-gray-50 border-t border-gray-200">
               <button
                 type="button"
-                className="results-secondary-button"
+                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
                 onClick={cancelEditing}
                 disabled={saving}
               >
@@ -355,18 +365,18 @@ function Results() {
               </button>
               <button
                 type="button"
-                className="results-primary-button"
+                className="flex items-center px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                 onClick={() => saveEdit(editingResult)}
                 disabled={saving || editContent.trim() === ''}
               >
                 {saving ? (
                   <>
-                    <span className="spinner-sm" />
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
                     保存中...
                   </>
                 ) : (
                   <>
-                    <Save className="results-primary-button-icon" />
+                    <Save className="w-4 h-4 mr-2" />
                     保存改动
                   </>
                 )}
