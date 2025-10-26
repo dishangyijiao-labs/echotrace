@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "rest_framework_simplejwt",
+    "django_celery_beat",  # Celery Beat database scheduler
     "accounts",
     "media",
     "transcripts",
@@ -203,3 +204,64 @@ ECHOTRACE = {
     "MAX_FILE_SIZE": 2 * 1024 * 1024 * 1024,  # 2GB
     "TRANSCRIPTION_TIMEOUT": 3600,  # 1 hour
 }
+
+# ===== Celery 配置 =====
+# Celery Broker 设置
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+
+# Celery 任务设置
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = True
+
+# Celery Beat 定时任务设置
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    'nas-scan-daily': {
+        'task': 'media.tasks.run_nas_scan',
+        'schedule': crontab(hour=22, minute=0),  # 每天22:00执行
+        'options': {'queue': 'default'},
+    },
+    'cleanup-weekly': {
+        'task': 'media.tasks.cleanup_old_files',
+        'schedule': crontab(hour=2, minute=0, day_of_week=0),  # 每周日2:00执行
+        'options': {'queue': 'default'},
+    },
+}
+
+# Celery 任务路由
+CELERY_TASK_ROUTES = {
+    'media.tasks.run_nas_scan': {'queue': 'default'},
+    'media.tasks.run_transcription_job': {'queue': 'transcription'},
+    'media.tasks.cleanup_old_files': {'queue': 'maintenance'},
+}
+
+# Celery Worker 设置
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_TASK_ACKS_LATE = True
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
+
+# ===== Redis 缓存配置 =====
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': os.environ.get('REDIS_URL', 'redis://localhost:6379/1'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'CONNECTION_POOL_KWARGS': {
+                'max_connections': 50,
+                'retry_on_timeout': True,
+            },
+        },
+        'KEY_PREFIX': 'echotrace',
+        'TIMEOUT': 300,  # 5分钟默认过期时间
+    }
+}
+
+# 使用 Redis 作为 Session 后端（可选）
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'
