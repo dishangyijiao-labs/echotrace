@@ -14,14 +14,16 @@ import {
   X,
   UserCircle,
   LogOut,
-  ChevronDown
+  ChevronDown,
+  HardDrive
 } from 'lucide-react'
 
 const navigation = [
   { name: '仪表板', href: '/dashboard', icon: Home },
   { name: '任务队列', href: '/tasks', icon: List },
   { name: '转录结果', href: '/results', icon: FileText },
-  { name: '资源管理', href: '/resources', icon: Folder }
+  { name: '资源管理', href: '/resources', icon: Folder },
+  { name: 'NAS管理', href: '/nas', icon: HardDrive }
 ]
 
 const adminNavigation = [
