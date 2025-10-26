@@ -12,6 +12,8 @@ RUN apt-get update \
         ffmpeg \
         git \
         libsndfile1 \
+        libpq-dev \
+        libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

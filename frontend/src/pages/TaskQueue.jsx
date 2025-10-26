@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import axios from 'axios'
+import { useAuth } from '../context/AuthContext'
 import {
   Plus,
   Clock,
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react'
 
 function TaskQueue() {
+  const { user } = useAuth()
   const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
@@ -313,37 +315,46 @@ function TaskQueue() {
           </div>
         </div>
         <div className="flex gap-2">
-          {!workerStatus.is_running ? (
-            <button
-              type="button"
-              onClick={() => controlWorker('start')}
-              disabled={workerLoading}
-              className="inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Play className="h-4 w-4 mr-2" />
-              启动 Worker
-            </button>
-          ) : (
+          {user?.is_admin && (
             <>
-              <button
-                type="button"
-                onClick={() => controlWorker('restart')}
-                disabled={workerLoading}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <RotateCw className="h-4 w-4 mr-2" />
-                重启
-              </button>
-              <button
-                type="button"
-                onClick={() => controlWorker('stop')}
-                disabled={workerLoading}
-                className="inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <PowerOff className="h-4 w-4 mr-2" />
-                停止
-              </button>
+              {!workerStatus.is_running ? (
+                <button
+                  type="button"
+                  onClick={() => controlWorker('start')}
+                  disabled={workerLoading}
+                  className="inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Play className="h-4 w-4 mr-2" />
+                  启动 Worker
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => controlWorker('restart')}
+                    disabled={workerLoading}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <RotateCw className="h-4 w-4 mr-2" />
+                    重启
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => controlWorker('stop')}
+                    disabled={workerLoading}
+                    className="inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <PowerOff className="h-4 w-4 mr-2" />
+                    停止
+                  </button>
+                </>
+              )}
             </>
+          )}
+          {!user?.is_admin && (
+            <div className="text-sm text-gray-500 px-3 py-2">
+              只有管理员可以控制 Worker 进程
+            </div>
           )}
         </div>
       </div>
@@ -396,7 +407,7 @@ function TaskQueue() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(job.created_at).toLocaleString()}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex space-x-2">
-                      {job.status === 'failed' && (
+                      {job.status === 'failed' && (user?.is_admin || job.owner?.username === user?.username) && (
                         <button
                           onClick={() => retryJob(job.id)}
                           className="text-blue-600 hover:text-blue-900 p-1 rounded"
@@ -406,7 +417,7 @@ function TaskQueue() {
                         </button>
                       )}
 
-                      {['pending', 'processing'].includes(job.status) && (
+                      {['pending', 'processing'].includes(job.status) && (user?.is_admin || job.owner?.username === user?.username) && (
                         <button
                           onClick={() => cancelJob(job.id)}
                           className="text-red-600 hover:text-red-900 p-1 rounded"
@@ -424,6 +435,12 @@ function TaskQueue() {
                         >
                           <AlertCircle className="h-4 w-4" />
                         </button>
+                      )}
+                      
+                      {!user?.is_admin && job.owner?.username !== user?.username && ['pending', 'processing', 'failed'].includes(job.status) && (
+                        <div className="text-xs text-gray-400 px-2 py-1">
+                          仅创建者可操作
+                        </div>
                       )}
                     </div>
                   </td>
