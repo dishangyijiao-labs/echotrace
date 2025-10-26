@@ -104,15 +104,33 @@ WSGI_APPLICATION = "media_manager.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-default_db_path = os.environ.get("DJANGO_DB_PATH", str(BASE_DIR / "db.sqlite3"))
-DATABASES = {
-    "default": {
-        "ENGINE": os.environ.get(
-            "DJANGO_DB_ENGINE", "django.db.backends.sqlite3"
-        ),
-        "NAME": default_db_path,
+# 数据库配置 - 支持 PostgreSQL 和 SQLite
+DB_ENGINE = os.environ.get("DJANGO_DB_ENGINE", "django.db.backends.sqlite3")
+
+if DB_ENGINE == "django.db.backends.postgresql":
+    # PostgreSQL 配置
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ.get("POSTGRES_DB", "echotrace"),
+            "USER": os.environ.get("POSTGRES_USER", "echotrace"),
+            "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "echotrace123"),
+            "HOST": os.environ.get("POSTGRES_HOST", "postgres"),
+            "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+            "OPTIONS": {
+                "connect_timeout": 60,
+            },
+        }
     }
-}
+else:
+    # SQLite 配置（默认）
+    default_db_path = os.environ.get("DJANGO_DB_PATH", str(BASE_DIR / "db.sqlite3"))
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": default_db_path,
+        }
+    }
 
 
 # Password validation
