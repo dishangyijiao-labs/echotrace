@@ -9,6 +9,7 @@ import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import TaskQueue from './pages/TaskQueue'
 import Results from './pages/Results'
+import TranscriptDetail from './pages/TranscriptDetail'
 import Resources from './pages/Resources'
 import Scheduler from './pages/Scheduler'
 import Settings from './pages/Settings'
@@ -113,6 +114,7 @@ function AppRoutes() {
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="tasks" element={<TaskQueue />} />
         <Route path="results" element={<Results />} />
+        <Route path="results/:id" element={<TranscriptDetail />} />
         <Route path="resources" element={<Resources />} />
         <Route path="scheduler" element={<Scheduler />} />
         <Route path="activity" element={<Activity />} />
