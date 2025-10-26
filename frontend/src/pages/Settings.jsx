@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import axios from 'axios'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -69,12 +69,17 @@ function Settings() {
   const [message, setMessage] = useState(null)
   const [activeSection, setActiveSection] = useState('transcription')
 
-  const sectionRefs = {
-    transcription: useRef(null),
-    storage: useRef(null),
-    system: useRef(null),
-    security: useRef(null)
-  }
+  const transcriptionRef = useRef(null)
+  const storageRef = useRef(null)
+  const systemRef = useRef(null)
+  const securityRef = useRef(null)
+
+  const sectionRefs = useMemo(() => ({
+    transcription: transcriptionRef,
+    storage: storageRef,
+    system: systemRef,
+    security: securityRef
+  }), [])
 
   useEffect(() => {
     if (user?.is_admin) {
@@ -165,7 +170,7 @@ function Settings() {
       observedElements.forEach((element) => observer.unobserve(element))
       observer.disconnect()
     }
-  }, [loading])
+  }, [loading, sectionRefs])
 
   const scrollToSection = (key) => {
     const element = sectionRefs[key]?.current
@@ -280,7 +285,7 @@ function Settings() {
       <div className="flex gap-8">
         <aside className="w-64 flex-shrink-0" aria-label="设置导航">
           <nav className="space-y-2">
-            {SETTINGS_SECTIONS.map(({ key, label, description, icon: Icon }) => (
+            {SETTINGS_SECTIONS.map(({ key, label, description, icon: Icon }) => ( // eslint-disable-line no-unused-vars
               <button
                 key={key}
                 type="button"

@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     "settings",
     "scheduler",
     "activities",
+    "dashboard",
 ]
 
 MIDDLEWARE = [
