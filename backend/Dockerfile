@@ -2,10 +2,10 @@ FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    DJANGO_SETTINGS_MODULE=media_manager.settings \
     PIP_ROOT_USER_ACTION=ignore
 
-WORKDIR /app
-
+# 安装系统依赖
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential \
@@ -14,12 +14,13 @@ RUN apt-get update \
         libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt ./
-RUN pip install --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-EXPOSE 8001
+EXPOSE 8000
 
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8001"]
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
