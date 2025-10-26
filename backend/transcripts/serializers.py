@@ -38,6 +38,12 @@ class TranscriptSerializer(serializers.ModelSerializer):
     media = MediaFileSerializer(read_only=True)
     current_content = serializers.CharField(read_only=True)
     version_count = serializers.SerializerMethodField()
+    nas_directories = serializers.SerializerMethodField()
+    filename = serializers.SerializerMethodField()
+    duration = serializers.SerializerMethodField()
+    content = serializers.SerializerMethodField()
+    version = serializers.SerializerMethodField()
+    language = serializers.SerializerMethodField()
 
     class Meta:
         model = Transcript
@@ -50,6 +56,12 @@ class TranscriptSerializer(serializers.ModelSerializer):
             "char_count",
             "current_content",
             "version_count",
+            "nas_directories",
+            "filename",
+            "duration",
+            "content",
+            "version",
+            "language",
             "created_at",
             "updated_at",
         ]
@@ -57,6 +69,52 @@ class TranscriptSerializer(serializers.ModelSerializer):
 
     def get_version_count(self, obj):
         return obj.versions.count()
+    
+    def get_nas_directories(self, obj):
+        """获取NAS目录信息"""
+        if not obj.media:
+            return []
+        
+        filename = obj.media.filename
+        # 这里可以从配置或数据库中获取NAS目录信息
+        # 目前使用硬编码的示例数据
+        return [
+            {
+                "id": 1,
+                "name": "主存储NAS",
+                "path": f"/nas/storage/media/{filename}",
+                "url": f"smb://nas.company.com/storage/media/{filename}",
+                "type": "smb"
+            },
+            {
+                "id": 2,
+                "name": "备份NAS",
+                "path": f"/nas/backup/media/{filename}",
+                "url": f"smb://backup-nas.company.com/backup/media/{filename}",
+                "type": "smb"
+            }
+        ]
+    
+    def get_filename(self, obj):
+        """获取文件名"""
+        return obj.media.filename if obj.media else ""
+    
+    def get_duration(self, obj):
+        """获取时长"""
+        return obj.media.duration if obj.media else None
+    
+    def get_content(self, obj):
+        """获取当前版本内容"""
+        return obj.current_content
+    
+    def get_version(self, obj):
+        """获取当前版本号"""
+        return obj.current_version.version_no if obj.current_version else 1
+    
+    def get_language(self, obj):
+        """获取语言"""
+        # 这里可以从媒体文件或转录设置中获取语言信息
+        return "zh-CN"
 
 
 class SearchResultSerializer(serializers.Serializer):

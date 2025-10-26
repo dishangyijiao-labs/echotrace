@@ -129,6 +129,40 @@ services:
     command: celery -A media_manager beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     restart: unless-stopped
 
+  # 转录任务处理器 - 处理音视频转录任务
+  transcription-worker:
+    build:
+      context: backend
+      dockerfile: Dockerfile
+    container_name: echotrace-transcription-worker
+    environment:
+      DJANGO_DEBUG: "true"
+      DJANGO_SECRET_KEY: "changeme-in-prod"
+      DJANGO_MEDIA_ROOT: "/app/media"
+      # PostgreSQL 数据库配置
+      DJANGO_DB_ENGINE: "django.db.backends.postgresql"
+      POSTGRES_DB: "echotrace"
+      POSTGRES_USER: "echotrace"
+      POSTGRES_PASSWORD: "echotrace123"
+      POSTGRES_HOST: "postgres"
+      POSTGRES_PORT: "5432"
+      # Celery 和 Redis 配置
+      CELERY_BROKER_URL: "redis://redis:6379/0"
+      CELERY_RESULT_BACKEND: "redis://redis:6379/0"
+      REDIS_URL: "redis://redis:6379/1"
+    volumes:
+      - backend_data:/app/data
+      - backend_media:/app/media
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      backend:
+        condition: service_started
+    command: python manage.py process_jobs
+    restart: unless-stopped
+
   # Flower - Celery 任务监控界面（可选）
   flower:
     build:

@@ -214,13 +214,13 @@ SIMPLE_JWT = {
 
 # EchoTrace specific settings
 ECHOTRACE = {
-    "WHISPER_MODEL": "small",  # tiny/base/small/medium/large
-    "WHISPER_DEVICE": "auto",  # auto/cpu/cuda
+    "WHISPER_MODEL": "tiny",  # tiny/base/small/medium/large
+    "WHISPER_DEVICE": "cpu",  # auto/cpu/cuda - 使用CPU避免GPU相关问题
     "WHISPER_LANGUAGE": "auto",  # zh/en/auto
     "WORKER_CONCURRENCY": 1,
     "WORKER_POLL_INTERVAL": 5,  # seconds
     "MAX_FILE_SIZE": 2 * 1024 * 1024 * 1024,  # 2GB
-    "TRANSCRIPTION_TIMEOUT": 3600,  # 1 hour
+    "TRANSCRIPTION_TIMEOUT": 1800,  # 30分钟，减少超时时间
 }
 
 # ===== Celery 配置 =====
