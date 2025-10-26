@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Navigation Test</title>
+</head>
+<body>
+    <h1>Navigation Configuration Test</h1>
+    <div id="nav-test"></div>
+    
+    <script>
+        // 模拟导航配置
+        const navigation = [
+            { name: '仪表板', href: '/dashboard', icon: 'Home' },
+            { name: '任务队列', href: '/tasks', icon: 'List' },
+            { name: '转录结果', href: '/results', icon: 'FileText' },
+            { name: '资源管理', href: '/resources', icon: 'Folder' },
+            { name: 'NAS管理', href: '/nas', icon: 'HardDrive' }
+        ];
+        
+        const navDiv = document.getElementById('nav-test');
+        navigation.forEach(item => {
+            const div = document.createElement('div');
+            div.innerHTML = `<a href="${item.href}">${item.name}</a>`;
+            navDiv.appendChild(div);
+        });
+        
+        console.log('Navigation items:', navigation);
+    </script>
+</body>
+</html>

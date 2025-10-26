@@ -14,6 +14,8 @@ import Scheduler from './pages/Scheduler'
 import Settings from './pages/Settings'
 import Users from './pages/Users'
 import Activity from './pages/Activity'
+import NASManager from './pages/NASManager'
+import NASTest from './pages/NASTest'
 
 // Context
 import { AuthProvider, useAuth } from './context/AuthContext'
@@ -114,6 +116,7 @@ function AppRoutes() {
         <Route path="resources" element={<Resources />} />
         <Route path="scheduler" element={<Scheduler />} />
         <Route path="activity" element={<Activity />} />
+        <Route path="nas" element={<NASManager />} />
 
         {/* Admin only routes */}
         <Route path="settings" element={<AdminRoute><Settings /></AdminRoute>} />

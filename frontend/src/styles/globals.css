@@ -1,7 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@theme {
+:root {
   --font-sans: 'Inter', system-ui, sans-serif;
   
   --color-primary-50: #eff6ff;
@@ -68,7 +70,16 @@
   }
 
   .btn-primary {
-    @apply bg-gradient-to-r from-sky-400 via-blue-500 to-emerald-500 text-white font-semibold shadow-button hover:shadow-button-hover hover:-translate-y-0.5 disabled:shadow-none disabled:transform-none;
+    @apply bg-gradient-to-r from-sky-400 via-blue-500 to-emerald-500 text-white font-semibold hover:-translate-y-0.5 disabled:transform-none;
+    box-shadow: var(--shadow-button);
+  }
+  
+  .btn-primary:hover:not(:disabled) {
+    box-shadow: var(--shadow-button-hover);
+  }
+  
+  .btn-primary:disabled {
+    box-shadow: none;
   }
 
   .btn-secondary {
@@ -98,7 +109,8 @@
 
   /* Card components */
   .card {
-    @apply bg-white rounded-3xl shadow-card p-6;
+    @apply bg-white rounded-3xl p-6;
+    box-shadow: var(--shadow-card);
   }
 
   .card-header {

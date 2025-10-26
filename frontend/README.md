@@ -1,16 +1,76 @@
-# React + Vite
+# EchoTrace 前端
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+EchoTrace 智能媒体转录管理系统的前端应用，基于 React 19 + Vite 7 构建。
 
-Currently, two official plugins are available:
+## 技术栈
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **React 19.1** - 核心 UI 框架
+- **React Router 6.28** - 客户端路由
+- **Vite 7.1.7** - 构建工具与开发服务器
+- **Tailwind CSS** - 样式框架
+- **Axios 1.12.2** - HTTP 客户端 + JWT 拦截器
+- **Lucide React** - 图标库
 
-## React Compiler
+## 开发
 
-The React Compiler is not enabled on this template. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 本地开发
 
-## Expanding the ESLint configuration
+```bash
+# 安装依赖
+npm install
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+# 启动开发服务器
+npm run dev
+
+# 访问 http://localhost:5173
+```
+
+### Docker 开发
+
+```bash
+# 在项目根目录
+docker-compose up frontend
+
+# 访问 http://localhost:8080
+```
+
+## 构建
+
+```bash
+# 生产构建
+npm run build
+
+# 预览构建结果
+npm run preview
+```
+
+## 代码规范
+
+```bash
+# ESLint 检查
+npm run lint
+
+# 自动修复
+npm run lint:fix
+```
+
+## 项目结构
+
+```
+src/
+├── components/     # 可复用组件
+├── pages/         # 页面组件
+├── hooks/         # 自定义 Hooks
+├── services/      # API 服务
+├── utils/         # 工具函数
+└── App.jsx        # 应用入口
+```
+
+## 环境变量
+
+- `VITE_API_BASE` - 后端 API 地址（默认: http://localhost:8001/api）
+
+## 相关文档
+
+- [系统架构文档](../docs/ARCHITECTURE.md)
+- [项目主 README](../README.md)

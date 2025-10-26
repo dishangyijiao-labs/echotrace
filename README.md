@@ -4,7 +4,7 @@
 
 ## 快速开始
 
-详细文档请查看 [README_MVP.md](./README_MVP.md)
+详细架构文档请查看 [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
 
 ### 使用 Docker Compose（推荐）
 
