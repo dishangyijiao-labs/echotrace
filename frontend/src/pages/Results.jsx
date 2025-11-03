@@ -38,31 +38,55 @@ function Results() {
   const [editingResult, setEditingResult] = useState(null)
   const [editContent, setEditContent] = useState('')
   const [saving, setSaving] = useState(false)
+  // 中文输入法组合状态与搜索防抖
+  const [isComposing, setIsComposing] = useState(false)
+  const [debouncedSearch, setDebouncedSearch] = useState('')
 
-  const loadResults = useCallback(async () => {
-    try {
-      setLoading(true)
-      const params = {
-        ...(filter !== 'all' && { status: filter }),
-        ...(searchTerm && { search: searchTerm })
+  const loadResults = useCallback(
+    async ({ initial = false } = {}) => {
+      try {
+        if (initial) setLoading(true)
+        const params = {
+          ...(filter !== 'all' && { status: filter })
+          // 不在列表接口传递搜索词，避免后端仅按文件名筛选导致内容搜索无结果
+        }
+        const response = await axios.get('/transcripts/', { params })
+        // Handle both wrapped and unwrapped responses
+        const data = response.data?.data || response.data
+        setResults(Array.isArray(data) ? data : data?.results || [])
+      } catch (error) {
+        console.error('Failed to load results:', error)
+      } finally {
+        if (initial) setLoading(false)
       }
-      const response = await axios.get('/transcripts/', { params })
-      // Handle both wrapped and unwrapped responses
-      const data = response.data?.data || response.data
-      setResults(Array.isArray(data) ? data : data?.results || [])
-    } catch (error) {
-      console.error('Failed to load results:', error)
-    } finally {
-      setLoading(false)
-    }
-  }, [filter, searchTerm])
+    },
+    [filter]
+  )
 
   useEffect(() => {
+    // 首次加载仅使用整页加载状态，避免后续输入时闪烁
+    loadResults({ initial: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // 搜索词防抖：中文输入法组合期间不触发
+  useEffect(() => {
+    if (isComposing) return
+    const id = setTimeout(() => {
+      setDebouncedSearch(searchTerm.trim())
+    }, 300)
+    return () => clearTimeout(id)
+  }, [searchTerm, isComposing])
+
+  // 过滤或防抖后的搜索词变化时刷新列表（不触发整页加载）
+  useEffect(() => {
     loadResults()
-  }, [loadResults])
+  }, [filter])
+
+  // 移除基于 loadResults 依赖的副作用，避免重复触发刷新
 
   const filteredResults = useMemo(() => {
-    const keyword = searchTerm.trim().toLowerCase()
+    const keyword = debouncedSearch.trim().toLowerCase()
     return results.filter((result) => {
       if (filter !== 'all' && result.status !== filter) return false
       if (!keyword) return true
@@ -72,7 +96,7 @@ function Results() {
 
       return filename.includes(keyword) || content.includes(keyword)
     })
-  }, [results, filter, searchTerm])
+  }, [results, filter, debouncedSearch])
 
   const startEditing = (result) => {
     setEditingResult(result.id)
@@ -185,6 +209,11 @@ function Results() {
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            onCompositionStart={() => setIsComposing(true)}
+            onCompositionEnd={(e) => {
+              setIsComposing(false)
+              setSearchTerm(e.target.value)
+            }}
           />
         </div>
         <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">

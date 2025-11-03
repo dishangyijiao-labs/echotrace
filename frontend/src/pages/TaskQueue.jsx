@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import axios from 'axios'
+import { useAuth } from '../context/AuthContext'
 import {
   Plus,
   Clock,
@@ -16,10 +17,14 @@ import {
   File,
   Power,
   PowerOff,
-  RotateCw
+  RotateCw,
+  ChevronUp,
+  ChevronDown,
+  Settings
 } from 'lucide-react'
 
 function TaskQueue() {
+  const { user } = useAuth()
   const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
@@ -40,6 +45,7 @@ function TaskQueue() {
     engine_model: 'small',
     device: 'cpu'
   })
+  const [priorityDropdownOpen, setPriorityDropdownOpen] = useState(null)
 
   const loadJobs = useCallback(async () => {
     try {
@@ -119,6 +125,19 @@ function TaskQueue() {
     }
   }, [showCreateModal])
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (priorityDropdownOpen && !event.target.closest('.relative')) {
+        setPriorityDropdownOpen(null)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [priorityDropdownOpen])
+
   const createJob = async () => {
     try {
       if (!newJob.media_id) {
@@ -167,6 +186,39 @@ function TaskQueue() {
     }
   }
 
+  const updateTaskPriority = async (taskId, newPriority) => {
+    try {
+      const response = await axios.post(`/jobs/${taskId}/priority`, {
+        priority: newPriority
+      })
+      if (response.data?.ok) {
+        loadJobs()
+        alert(`任务优先级已更新为${getPriorityText(newPriority)}`)
+      } else {
+        alert('更新优先级失败')
+      }
+    } catch (error) {
+      console.error('Failed to update task priority:', error)
+      const errorMsg = error.response?.data?.error?.message || '更新优先级失败'
+      alert(errorMsg)
+    }
+  }
+
+  const getPriorityText = (priority) => {
+    const priorityText = {
+      low: '低',
+      normal: '普通',
+      high: '高',
+      urgent: '紧急'
+    }
+    return priorityText[priority] || '普通'
+  }
+
+  const getPriorityOptions = (currentPriority) => {
+    const priorities = ['low', 'normal', 'high', 'urgent']
+    return priorities.filter(p => p !== currentPriority)
+  }
+
   const getStatusIcon = (status) => {
     switch (status) {
       case 'pending':
@@ -197,15 +249,19 @@ function TaskQueue() {
 
   const getPriorityBadge = (priority) => {
     const priorityMap = {
-      0: 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800',
-      1: 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800'
+      low: 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800',
+      normal: 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800',
+      high: 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800',
+      urgent: 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800'
     }
     const priorityText = {
-      0: '普通',
-      1: '高'
+      low: '低',
+      normal: '普通',
+      high: '高',
+      urgent: '紧急'
     }
     return (
-      <span className={priorityMap[priority] || priorityMap[0]}>
+      <span className={priorityMap[priority] || priorityMap['normal']}>
         {priorityText[priority] || '普通'}
       </span>
     )
@@ -313,37 +369,46 @@ function TaskQueue() {
           </div>
         </div>
         <div className="flex gap-2">
-          {!workerStatus.is_running ? (
-            <button
-              type="button"
-              onClick={() => controlWorker('start')}
-              disabled={workerLoading}
-              className="inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Play className="h-4 w-4 mr-2" />
-              启动 Worker
-            </button>
-          ) : (
+          {user?.is_admin && (
             <>
-              <button
-                type="button"
-                onClick={() => controlWorker('restart')}
-                disabled={workerLoading}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <RotateCw className="h-4 w-4 mr-2" />
-                重启
-              </button>
-              <button
-                type="button"
-                onClick={() => controlWorker('stop')}
-                disabled={workerLoading}
-                className="inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <PowerOff className="h-4 w-4 mr-2" />
-                停止
-              </button>
+              {!workerStatus.is_running ? (
+                <button
+                  type="button"
+                  onClick={() => controlWorker('start')}
+                  disabled={workerLoading}
+                  className="inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Play className="h-4 w-4 mr-2" />
+                  启动 Worker
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => controlWorker('restart')}
+                    disabled={workerLoading}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <RotateCw className="h-4 w-4 mr-2" />
+                    重启
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => controlWorker('stop')}
+                    disabled={workerLoading}
+                    className="inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <PowerOff className="h-4 w-4 mr-2" />
+                    停止
+                  </button>
+                </>
+              )}
             </>
+          )}
+          {!user?.is_admin && (
+            <div className="text-sm text-gray-500 px-3 py-2">
+              只有管理员可以控制 Worker 进程
+            </div>
           )}
         </div>
       </div>
@@ -385,7 +450,39 @@ function TaskQueue() {
                       <span className="ml-2 text-sm text-gray-900">{getStatusText(job.status)}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">{getPriorityBadge(job.priority)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="relative">
+                      {user?.is_admin ? (
+                        <div className="relative">
+                          <button
+                            onClick={() => setPriorityDropdownOpen(priorityDropdownOpen === job.id ? null : job.id)}
+                            className="flex items-center space-x-1 hover:bg-gray-100 rounded px-2 py-1 transition-colors"
+                          >
+                            {getPriorityBadge(job.priority)}
+                            <Settings className="h-3 w-3 text-gray-400" />
+                          </button>
+                          {priorityDropdownOpen === job.id && (
+                            <div className="absolute z-10 mt-1 w-32 bg-white border border-gray-200 rounded-md shadow-lg">
+                              {getPriorityOptions(job.priority).map((priority) => (
+                                <button
+                                  key={priority}
+                                  onClick={() => {
+                                    updateTaskPriority(job.id, priority)
+                                    setPriorityDropdownOpen(null)
+                                  }}
+                                  className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100 transition-colors"
+                                >
+                                  {getPriorityText(priority)}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        getPriorityBadge(job.priority)
+                      )}
+                    </div>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm">
                       <div className="text-gray-900">{job.engine || 'whisper'}</div>
@@ -396,7 +493,7 @@ function TaskQueue() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(job.created_at).toLocaleString()}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex space-x-2">
-                      {job.status === 'failed' && (
+                      {job.status === 'failed' && (user?.is_admin || job.owner?.username === user?.username) && (
                         <button
                           onClick={() => retryJob(job.id)}
                           className="text-blue-600 hover:text-blue-900 p-1 rounded"
@@ -406,7 +503,7 @@ function TaskQueue() {
                         </button>
                       )}
 
-                      {['pending', 'processing'].includes(job.status) && (
+                      {['pending', 'processing'].includes(job.status) && (user?.is_admin || job.owner?.username === user?.username) && (
                         <button
                           onClick={() => cancelJob(job.id)}
                           className="text-red-600 hover:text-red-900 p-1 rounded"
@@ -424,6 +521,12 @@ function TaskQueue() {
                         >
                           <AlertCircle className="h-4 w-4" />
                         </button>
+                      )}
+                      
+                      {!user?.is_admin && job.owner?.username !== user?.username && ['pending', 'processing', 'failed'].includes(job.status) && (
+                        <div className="text-xs text-gray-400 px-2 py-1">
+                          仅创建者可操作
+                        </div>
                       )}
                     </div>
                   </td>
