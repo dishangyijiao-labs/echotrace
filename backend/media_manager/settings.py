@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "rest_framework_simplejwt",
+    "django_celery_beat",  # Celery Beat database scheduler
     "accounts",
     "media",
     "transcripts",
@@ -66,6 +67,7 @@ INSTALLED_APPS = [
     "settings",
     "scheduler",
     "activities",
+    "dashboard",
 ]
 
 MIDDLEWARE = [
@@ -102,15 +104,33 @@ WSGI_APPLICATION = "media_manager.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-default_db_path = os.environ.get("DJANGO_DB_PATH", str(BASE_DIR / "db.sqlite3"))
-DATABASES = {
-    "default": {
-        "ENGINE": os.environ.get(
-            "DJANGO_DB_ENGINE", "django.db.backends.sqlite3"
-        ),
-        "NAME": default_db_path,
+# 数据库配置 - 支持 PostgreSQL 和 SQLite
+DB_ENGINE = os.environ.get("DJANGO_DB_ENGINE", "django.db.backends.sqlite3")
+
+if DB_ENGINE == "django.db.backends.postgresql":
+    # PostgreSQL 配置
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ.get("POSTGRES_DB", "echotrace"),
+            "USER": os.environ.get("POSTGRES_USER", "echotrace"),
+            "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "echotrace123"),
+            "HOST": os.environ.get("POSTGRES_HOST", "postgres"),
+            "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+            "OPTIONS": {
+                "connect_timeout": 60,
+            },
+        }
     }
-}
+else:
+    # SQLite 配置（默认）
+    default_db_path = os.environ.get("DJANGO_DB_PATH", str(BASE_DIR / "db.sqlite3"))
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": default_db_path,
+        }
+    }
 
 
 # Password validation
@@ -194,11 +214,72 @@ SIMPLE_JWT = {
 
 # EchoTrace specific settings
 ECHOTRACE = {
-    "WHISPER_MODEL": "small",  # tiny/base/small/medium/large
-    "WHISPER_DEVICE": "auto",  # auto/cpu/cuda
+    "WHISPER_MODEL": "tiny",  # tiny/base/small/medium/large
+    "WHISPER_DEVICE": "cpu",  # auto/cpu/cuda - 使用CPU避免GPU相关问题
     "WHISPER_LANGUAGE": "auto",  # zh/en/auto
     "WORKER_CONCURRENCY": 1,
     "WORKER_POLL_INTERVAL": 5,  # seconds
     "MAX_FILE_SIZE": 2 * 1024 * 1024 * 1024,  # 2GB
-    "TRANSCRIPTION_TIMEOUT": 3600,  # 1 hour
+    "TRANSCRIPTION_TIMEOUT": 1800,  # 30分钟，减少超时时间
 }
+
+# ===== Celery 配置 =====
+# Celery Broker 设置
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+
+# Celery 任务设置
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = True
+
+# Celery Beat 定时任务设置
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    'nas-scan-daily': {
+        'task': 'media.tasks.run_nas_scan',
+        'schedule': crontab(hour=22, minute=0),  # 每天22:00执行
+        'options': {'queue': 'default'},
+    },
+    'cleanup-weekly': {
+        'task': 'media.tasks.cleanup_old_files',
+        'schedule': crontab(hour=2, minute=0, day_of_week=0),  # 每周日2:00执行
+        'options': {'queue': 'default'},
+    },
+}
+
+# Celery 任务路由
+CELERY_TASK_ROUTES = {
+    'media.tasks.run_nas_scan': {'queue': 'default'},
+    'media.tasks.run_transcription_job': {'queue': 'transcription'},
+    'media.tasks.cleanup_old_files': {'queue': 'maintenance'},
+}
+
+# Celery Worker 设置
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_TASK_ACKS_LATE = True
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
+
+# ===== Redis 缓存配置 =====
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': os.environ.get('REDIS_URL', 'redis://localhost:6379/1'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'CONNECTION_POOL_KWARGS': {
+                'max_connections': 50,
+                'retry_on_timeout': True,
+            },
+        },
+        'KEY_PREFIX': 'echotrace',
+        'TIMEOUT': 300,  # 5分钟默认过期时间
+    }
+}
+
+# 使用 Redis 作为 Session 后端（可选）
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'

@@ -9,11 +9,14 @@ import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import TaskQueue from './pages/TaskQueue'
 import Results from './pages/Results'
+import TranscriptDetail from './pages/TranscriptDetail'
 import Resources from './pages/Resources'
 import Scheduler from './pages/Scheduler'
 import Settings from './pages/Settings'
 import Users from './pages/Users'
 import Activity from './pages/Activity'
+import NASManager from './pages/NASManager'
+import NASTest from './pages/NASTest'
 
 // Context
 import { AuthProvider, useAuth } from './context/AuthContext'
@@ -111,9 +114,11 @@ function AppRoutes() {
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="tasks" element={<TaskQueue />} />
         <Route path="results" element={<Results />} />
+        <Route path="results/:id" element={<TranscriptDetail />} />
         <Route path="resources" element={<Resources />} />
         <Route path="scheduler" element={<Scheduler />} />
         <Route path="activity" element={<Activity />} />
+        <Route path="nas" element={<NASManager />} />
 
         {/* Admin only routes */}
         <Route path="settings" element={<AdminRoute><Settings /></AdminRoute>} />

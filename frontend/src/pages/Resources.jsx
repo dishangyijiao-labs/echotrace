@@ -86,7 +86,7 @@ function Resources() {
     })
 
     try {
-      const response = await axios.post('/resources/upload/', formData, {
+      await axios.post('/resources/upload/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -130,7 +130,7 @@ function Resources() {
 
   const createTranscriptionJob = async (resourceId) => {
     try {
-      const response = await axios.post('/jobs/', {
+      await axios.post('/jobs/', {
         media_id: resourceId,
         priority: 0,
         engine: 'whisper',

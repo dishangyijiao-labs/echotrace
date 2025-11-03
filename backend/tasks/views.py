@@ -2,6 +2,7 @@ from typing import ClassVar
 
 from django.db.models import Q
 from rest_framework import generics, permissions, status
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from accounts.permissions import IsActiveUser
@@ -128,3 +129,66 @@ class TaskDetailView(generics.RetrieveUpdateDestroyAPIView):
             {"ok": True, "message": "Task deleted successfully"},
             status=status.HTTP_204_NO_CONTENT,
         )
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated, IsActiveUser])
+def update_task_priority(request, task_id):
+    """更新任务优先级"""
+    try:
+        task = Task.objects.get(id=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {
+                "ok": False,
+                "error": {
+                    "code": "TASK_NOT_FOUND",
+                    "message": "Task not found"
+                }
+            },
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    new_priority = request.data.get('priority')
+    if not new_priority:
+        return Response(
+            {
+                "ok": False,
+                "error": {
+                    "code": "MISSING_PRIORITY",
+                    "message": "Priority is required"
+                }
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # 验证优先级值是否有效
+    valid_priorities = [choice[0] for choice in Task.PRIORITY_CHOICES]
+    if new_priority not in valid_priorities:
+        return Response(
+            {
+                "ok": False,
+                "error": {
+                    "code": "INVALID_PRIORITY",
+                    "message": f"Priority must be one of: {', '.join(valid_priorities)}"
+                }
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # 更新优先级
+    old_priority = task.priority
+    task.priority = new_priority
+    task.save(update_fields=['priority', 'updated_at'])
+    
+    return Response({
+        "ok": True,
+        "data": {
+            "id": task.id,
+            "name": task.name,
+            "old_priority": old_priority,
+            "new_priority": new_priority,
+            "priority_display": task.get_priority_display()
+        },
+        "message": f"Task priority updated from {old_priority} to {new_priority}"
+    })
