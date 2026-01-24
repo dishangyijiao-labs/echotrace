@@ -1,12 +1,73 @@
 # EchoTrace Desktop
 
-Local audio/video transcription and text management tool (Tauri + FastAPI + faster-whisper).
+**Your Video Archive Search Engine** - Find any moment in seconds, not hours.
 
-## Overview
+## 🎬 Built for Content Creators
 
-- Local import audio/video → transcribe → timeline → search → summarize → export
-- Local database SQLite + FTS5 full-text search
-- MCP integration with multiple models (OpenAI / Claude / DeepSeek / Doubao / Local LLM)
+**The Problem**: You have 100+ hours of video content. Finding a specific clip takes 30 minutes of manual scrubbing.
+
+**The Solution**: Transcribe everything locally, search by keyword, jump to exact timestamp.
+
+### Real Use Case
+
+```
+Short-form video team needs clips about "AI" from 50+ long-form videos
+
+Old way: 2 hours of manual searching
+EchoTrace: 10 seconds
+  1. Search "artificial intelligence"
+  2. See all 23 mentions with timestamps
+  3. Click to play → verify → export timecode
+  4. Import to Premiere Pro
+```
+
+**Time saved per search: 120x**
+
+## 💡 Who Is This For?
+
+- 📹 **Short-video editors** - Repurpose long-form content into clips
+- 🎙️ **Podcast producers** - Generate show notes and chapter markers
+- 🎓 **Course creators** - Find and repackage specific topics
+- 📺 **MCN content teams** - Manage large video archives
+- 🎬 **Video bloggers** - Quickly recall "that one time I said..."
+
+## Core Features
+
+- 🎙️ **Local audio/video transcription** (powered by OpenAI Whisper)
+  - Completely offline processing
+  - No internet required for transcription
+  
+- 📊 **Timeline segmentation & full-text search** (SQLite FTS5)
+  - Fast local search across all transcripts
+  - No cloud indexing
+  
+- 📤 **Export to multiple formats** (txt / srt / md)
+  - All processing local
+  
+- 🤖 **Optional AI analysis** (⚠️ privacy trade-offs apply)
+  - **Local LLM**: Requires Ollama, data stays local, performance limited
+  - **Cloud LLM**: OpenAI/Claude/DeepSeek, faster but uploads text to cloud
+  - **Recommendation**: Use local for sensitive content, cloud for public content
+
+## ⚠️ Privacy Trade-offs
+
+### What's Always Local (100% Private)
+✅ Audio/video file processing  
+✅ Transcription generation  
+✅ Full-text search  
+✅ Export functions  
+
+### What's Optional (Privacy Impact)
+⚠️ **Cloud AI Analysis** (OpenAI/Claude/DeepSeek):
+- Uploads transcript text to third-party servers
+- Faster and higher quality
+- **NOT recommended for sensitive content**
+
+✅ **Local AI Analysis** (Ollama):
+- Runs on your device
+- Data never leaves your computer
+- Slower and quality depends on model size
+- **Recommended for sensitive content**
 
 ## Getting Started
 

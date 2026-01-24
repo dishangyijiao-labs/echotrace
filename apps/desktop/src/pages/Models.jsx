@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Save } from "lucide-react";
+import { Save, AlertTriangle, Shield, Cloud } from "lucide-react";
 
 const ENV_KEYS = {
   openai: "OPENAI_API_KEY",
@@ -119,18 +119,72 @@ function Models() {
         </button>
       </div>
 
+      {/* Privacy Warning Banner */}
+      <div className="bg-yellow-50 border-2 border-yellow-400 rounded-xl p-4">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="w-6 h-6 text-yellow-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h3 className="font-semibold text-yellow-900 mb-2">⚠️ 隐私风险警告</h3>
+            <div className="space-y-2 text-sm text-yellow-800">
+              <div className="flex items-start gap-2">
+                <Cloud className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <p>
+                  <strong>云端服务（OpenAI/Claude/DeepSeek/Doubao）</strong>：
+                  使用这些服务进行 AI 分析时，您的转录文本会被上传到第三方服务器。
+                </p>
+              </div>
+              <div className="flex items-start gap-2">
+                <Shield className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <p>
+                  <strong>本地服务（Local）</strong>：
+                  需要自行部署 Ollama 等本地 LLM 服务，数据不离开设备，但性能和质量有限。
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 p-3 bg-yellow-100 rounded-lg">
+              <p className="text-xs text-yellow-900 font-medium">
+                🚨 <strong>仅在处理非敏感内容时使用云端服务</strong>
+              </p>
+              <p className="text-xs text-yellow-800 mt-1">
+                律师、医生、企业机密内容应避免使用云端 AI 分析，或仅使用本地 LLM。
+                转录功能始终在本地进行，不受此影响。
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {Object.keys(config).map((provider) => {
           const info = config[provider];
           const keyName = ENV_KEYS[provider];
           const keyValue = keyName ? info.env?.[keyName] || "" : "";
+          const isLocal = provider === "local";
           return (
-            <div key={provider} className="card space-y-4">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">{provider}</h2>
-                <p className="text-xs text-gray-500">
-                  {info.type === "sse" ? info.url : info.command}
-                </p>
+            <div 
+              key={provider} 
+              className={`card space-y-4 ${isLocal ? 'border-2 border-green-300 bg-green-50' : 'border-2 border-orange-200 bg-orange-50'}`}
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-semibold text-gray-900">{provider}</h2>
+                    {isLocal ? (
+                      <span className="px-2 py-0.5 bg-green-600 text-white text-xs font-medium rounded-full">
+                        本地
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 bg-orange-600 text-white text-xs font-medium rounded-full">
+                        云端
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {info.type === "sse" ? info.url : info.command}
+                  </p>
+                </div>
+                {!isLocal && <Cloud className="w-5 h-5 text-orange-500" />}
+                {isLocal && <Shield className="w-5 h-5 text-green-600" />}
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700">模型列表</label>
