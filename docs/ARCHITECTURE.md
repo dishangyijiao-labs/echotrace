@@ -1,33 +1,33 @@
-# EchoTrace 桌面版架构
+# EchoTrace Desktop Architecture
 
-## 总览
+## Overview
 
-EchoTrace 是面向本地转写与知识整理的桌面产品，核心由桌面壳（Tauri）与本地服务（FastAPI + SQLite + faster-whisper）组成。
+EchoTrace is a desktop application for local transcription and knowledge management, built with Tauri shell and local services (FastAPI + SQLite + faster-whisper).
 
-### 关键能力
+### Key Capabilities
 
-- 本地音视频转写（faster-whisper）
-- 时间轴分段与搜索（SQLite FTS5）
-- 摘要与提取（MCP provider）
-- 本地导出（txt / srt / md）
+- Local audio/video transcription (faster-whisper)
+- Timeline segmentation & search (SQLite FTS5)
+- Summarization & extraction (MCP provider)
+- Local export (txt / srt / md)
 
-## 模块架构
+## Module Architecture
 
 ```mermaid
 graph TB
-  subgraph Desktop[桌面端 - Tauri]
+  subgraph Desktop[Desktop - Tauri]
     UI[React UI]
-    Tray[系统托盘/服务控制]
+    Tray[System Tray/Service Control]
   end
 
-  subgraph Core[本地服务 - FastAPI]
+  subgraph Core[Local Service - FastAPI]
     API[REST API]
     DB[(SQLite + FTS5)]
-    Worker[转写 Worker]
-    MCP[MCP 网关]
+    Worker[Transcription Worker]
+    MCP[MCP Gateway]
   end
 
-  subgraph Engine[本地引擎]
+  subgraph Engine[Local Engine]
     Whisper[faster-whisper]
     FFmpeg[ffmpeg]
   end
@@ -41,21 +41,21 @@ graph TB
   MCP --> API
 ```
 
-## 数据流
+## Data Flow
 
-1. 用户导入音视频 → 写入 `media` 表。
-2. 创建转写任务 → `job` 表排队。
-3. Worker 提取音频并转写 → 写入 `transcript` 与 `segment`。
-4. UI 展示时间轴、搜索、导出。
-5. MCP 进行摘要，结果写回 `transcript.summary`。
+1. User imports audio/video → written to `media` table
+2. Create transcription job → queued in `job` table
+3. Worker extracts audio and transcribes → written to `transcript` and `segment`
+4. UI displays timeline, search, export
+5. MCP performs summarization → results written back to `transcript.summary`
 
-## MCP 接入
+## MCP Integration
 
-- MCP provider 配置由桌面端写入 `mcp-providers.json`。
-- 支持 stdio 或 SSE server 两种接入方式。
+- MCP provider config is written by desktop app to `mcp-providers.json`
+- Supports stdio or SSE server connection modes
 
-## 目录说明
+## Directory Structure
 
-- `apps/desktop/`：Tauri + React 前端
-- `apps/core/`：FastAPI + SQLite + Worker + MCP
-- `legacy/`：历史 Web/Django 版本（仅供参考）
+- `apps/desktop/`: Tauri + React frontend
+- `apps/core/`: FastAPI + SQLite + Worker + MCP
+- `legacy/`: Historical Web/Django version (reference only)

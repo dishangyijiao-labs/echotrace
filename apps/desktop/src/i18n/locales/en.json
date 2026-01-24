@@ -1,0 +1,78 @@
+{
+  "app": {
+    "title": "EchoTrace",
+    "subtitle": "Local Transcription Tool"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "resources": "Resources",
+    "results": "Results",
+    "taskQueue": "Task Queue",
+    "services": "Services",
+    "models": "Models & Keys",
+    "settings": "Settings"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "statistics": "Statistics",
+    "recentFiles": "Recent Files"
+  },
+  "resources": {
+    "title": "Media Resources",
+    "import": "Import",
+    "search": "Search",
+    "filter": "Filter",
+    "status": "Status",
+    "actions": "Actions"
+  },
+  "results": {
+    "title": "Transcription Results",
+    "search": "Search in transcripts",
+    "export": "Export",
+    "segments": "Segments"
+  },
+  "taskQueue": {
+    "title": "Task Queue",
+    "pending": "Pending",
+    "running": "Running",
+    "completed": "Completed",
+    "failed": "Failed"
+  },
+  "services": {
+    "title": "Services",
+    "core": "Core API",
+    "worker": "Transcription Worker",
+    "status": "Status",
+    "start": "Start",
+    "stop": "Stop",
+    "restart": "Restart"
+  },
+  "models": {
+    "title": "Models & Keys",
+    "provider": "Provider",
+    "apiKey": "API Key",
+    "configure": "Configure",
+    "save": "Save"
+  },
+  "settings": {
+    "title": "Settings",
+    "general": "General",
+    "language": "Language",
+    "theme": "Theme",
+    "transcription": "Transcription",
+    "model": "Whisper Model",
+    "device": "Device"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "confirm": "Confirm",
+    "close": "Close",
+    "loading": "Loading...",
+    "success": "Success",
+    "error": "Error",
+    "retry": "Retry"
+  }
+}
