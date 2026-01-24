@@ -1,6 +1,13 @@
 # EchoTrace Desktop (Tauri)
 
-Desktop shell for the EchoTrace MVP.
+**Privacy-First Desktop Application** - All processing happens locally on your machine.
+
+## Privacy Guarantee
+
+- ✅ 100% local processing - no cloud uploads
+- ✅ Your files never leave your device
+- ✅ Works completely offline
+- ✅ No telemetry, no tracking, no data collection
 
 ## Development
 

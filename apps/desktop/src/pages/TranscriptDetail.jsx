@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Search } from "lucide-react";
 import api from "../lib/api";
 import {
@@ -23,6 +23,7 @@ const formatTime = (seconds) => {
 
 function TranscriptDetail() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const [transcript, setTranscript] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -135,6 +136,36 @@ function TranscriptDetail() {
     }
   }, [provider, providerConfig]);
 
+  useEffect(() => {
+    const keyword = searchParams.get("q") || "";
+    if (keyword !== searchTerm) {
+      setSearchTerm(keyword);
+    }
+  }, [searchParams, searchTerm]);
+
+  useEffect(() => {
+    if (!transcript?.segments?.length) return;
+    const segmentParam = searchParams.get("segment");
+    if (segmentParam) {
+      const segmentId = Number(segmentParam);
+      const target = transcript.segments.find((segment) => segment.id === segmentId);
+      if (target) {
+        setActiveSegmentId(target.id);
+        if (audioRef.current) {
+          audioRef.current.currentTime = target.start;
+        }
+        return;
+      }
+    }
+    const timeParam = searchParams.get("t");
+    if (timeParam) {
+      const time = Number(timeParam);
+      if (!Number.isNaN(time) && audioRef.current) {
+        audioRef.current.currentTime = time;
+      }
+    }
+  }, [searchParams, transcript]);
+
   const highlighted = useMemo(() => {
     if (!transcript?.content || !searchTerm.trim()) return transcript?.content || "";
     const term = searchTerm.trim();
@@ -150,6 +181,22 @@ function TranscriptDetail() {
       );
     });
   }, [transcript, searchTerm]);
+
+  const highlightSegment = (text) => {
+    if (!searchTerm.trim() || !text) return text;
+    const term = searchTerm.trim();
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(`(${escaped})`, "gi");
+    return text.split(regex).map((part, index) => {
+      const isMatch = part.toLowerCase() === term.toLowerCase();
+      if (!isMatch) return <span key={index}>{part}</span>;
+      return (
+        <mark key={index} className="bg-yellow-100 text-yellow-800 px-1 rounded">
+          {part}
+        </mark>
+      );
+    });
+  };
 
   if (loading) {
     return (
@@ -369,7 +416,7 @@ function TranscriptDetail() {
                     {formatTime(segment.start)} - {formatTime(segment.end)}
                   </div>
                   <div className="mt-1 text-sm text-gray-800">
-                    {segment.text}
+                    {highlightSegment(segment.text)}
                   </div>
                 </button>
               ))
