@@ -39,6 +39,8 @@ Thumbs.db
 # Logs
 *.log
 logs/
+apps/core/logs/
+apps/desktop/logs/
 
 # Core (FastAPI) specific
 apps/core/data/*.db

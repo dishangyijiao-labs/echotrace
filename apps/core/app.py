@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from db.init_db import init_db
 from mcp_gateway.client import call_tool as mcp_call_tool
 from mcp_gateway.registry import load_providers
+from pipeline.model_manager import get_model_info, is_model_downloaded, download_model
 
 APP_ROOT = Path(__file__).resolve().parent
 DEFAULT_DB_PATH = APP_ROOT / "data" / "app.db"
@@ -61,6 +62,29 @@ class SummarizeRequest(BaseModel):
 @app.on_event("startup")
 def _startup() -> None:
     init_db(DEFAULT_DB_PATH, SCHEMA_PATH)
+
+
+@app.get("/")
+def root() -> dict:
+    return {
+        "name": "EchoTrace Core API",
+        "version": "0.1.0",
+        "description": "Local Video Archive Search Engine for Content Creators",
+        "use_case": "Find any moment in your video library in seconds",
+        "target_users": [
+            "Short-video editors",
+            "Podcast producers",
+            "Course creators",
+            "MCN content teams"
+        ],
+        "features": [
+            "Batch video/audio transcription",
+            "Full-text search across all content",
+            "Timestamp-based snippet export",
+            "EDL/XML export for editing software"
+        ],
+        "privacy": "All processing happens locally - no cloud uploads"
+    }
 
 
 @app.get("/health")
@@ -191,20 +215,42 @@ def get_transcript(transcript_id: int) -> dict:
 
 
 @app.get("/search")
-def search(q: str = Query(min_length=1)) -> dict:
+def search(
+    q: str = Query(min_length=1),
+    limit: int = Query(ge=1, le=200, default=50),
+    offset: int = Query(ge=0, default=0),
+) -> dict:
     with _connect(DEFAULT_DB_PATH) as conn:
+        total = conn.execute(
+            "SELECT COUNT(1) FROM segment_fts WHERE segment_fts MATCH ?",
+            (q,),
+        ).fetchone()[0]
         rows = conn.execute(
             """
-            SELECT s.id, s.transcript_id, s.start, s.end, s.text
+            SELECT s.id,
+                   s.transcript_id,
+                   s.start,
+                   s.end,
+                   s.text,
+                   m.filename,
+                   snippet(fts, 0, '', '', '...', 12) AS snippet
             FROM segment_fts fts
             JOIN segment s ON s.id = fts.rowid
+            JOIN transcript t ON t.id = s.transcript_id
+            JOIN media m ON m.id = t.media_id
             WHERE segment_fts MATCH ?
             ORDER BY rank
-            LIMIT 50
+            LIMIT ? OFFSET ?
             """,
-            (q,),
+            (q, limit, offset),
         ).fetchall()
-    return {"ok": True, "data": [dict(row) for row in rows]}
+    return {
+        "ok": True,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "data": [dict(row) for row in rows],
+    }
 
 
 @app.post("/summarize")
@@ -266,6 +312,64 @@ def export_transcript(transcript_id: int, format: str = "txt") -> dict:
         lines.append(seg["text"].strip())
         lines.append("")
     return {"ok": True, "content": "\n".join(lines).strip()}
+
+
+@app.get("/models")
+def list_models() -> dict:
+    """List available Whisper models and their download status"""
+    models = ["tiny", "base", "small", "medium", "large-v2", "large-v3"]
+    return {
+        "models": [
+            {
+                "name": model,
+                **get_model_info(model)
+            }
+            for model in models
+        ]
+    }
+
+
+@app.get("/models/{model_name}")
+def get_model_status(model_name: str) -> dict:
+    """Get status of a specific model"""
+    info = get_model_info(model_name)
+    if not info:
+        raise HTTPException(status_code=404, detail="Model not found")
+    
+    return {
+        "model": model_name,
+        **info
+    }
+
+
+@app.post("/models/{model_name}/download")
+def download_model_endpoint(model_name: str, device: str = "cpu") -> dict:
+    """
+    Download a Whisper model
+    
+    This is a blocking endpoint - it will wait until download completes.
+    For production, consider implementing async/background download with progress tracking.
+    """
+    if is_model_downloaded(model_name):
+        return {
+            "ok": True,
+            "message": f"Model '{model_name}' is already downloaded",
+            "downloaded": True
+        }
+    
+    success = download_model(model_name, device)
+    
+    if success:
+        return {
+            "ok": True,
+            "message": f"Model '{model_name}' downloaded successfully",
+            "downloaded": True
+        }
+    else:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to download model '{model_name}'"
+        )
 
 
 if __name__ == "__main__":
