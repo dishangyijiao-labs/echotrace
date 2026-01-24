@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   LayoutDashboard,
   Folder,
@@ -11,20 +12,22 @@ import {
   Menu,
   X
 } from "lucide-react";
-
-const navigation = [
-  { name: "总览", href: "/dashboard", icon: LayoutDashboard },
-  { name: "资源管理", href: "/resources", icon: Folder },
-  { name: "任务队列", href: "/tasks", icon: ListTodo },
-  { name: "转录结果", href: "/results", icon: FileText },
-  { name: "服务与日志", href: "/services", icon: Terminal },
-  { name: "模型与密钥", href: "/models", icon: KeyRound },
-  { name: "播放设置", href: "/settings", icon: SlidersHorizontal }
-];
+import LanguageSwitcher from "./LanguageSwitcher";
 
 function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const { t } = useTranslation();
+
+  const navigation = [
+    { name: t('nav.dashboard'), href: "/dashboard", icon: LayoutDashboard },
+    { name: t('nav.resources'), href: "/resources", icon: Folder },
+    { name: t('nav.taskQueue'), href: "/tasks", icon: ListTodo },
+    { name: t('nav.results'), href: "/results", icon: FileText },
+    { name: t('nav.services'), href: "/services", icon: Terminal },
+    { name: t('nav.models'), href: "/models", icon: KeyRound },
+    { name: t('nav.settings'), href: "/settings", icon: SlidersHorizontal }
+  ];
 
   const isCurrent = (path) => location.pathname === path;
 
@@ -97,8 +100,11 @@ function AppLayout() {
             >
               <Menu className="w-5 h-5" />
             </button>
-            <div className="ml-auto text-sm text-gray-500">
-              Local-only transcription workspace
+            <div className="ml-auto flex items-center gap-4">
+              <LanguageSwitcher />
+              <div className="text-sm text-gray-500">
+                Local-only transcription workspace
+              </div>
             </div>
           </div>
         </header>

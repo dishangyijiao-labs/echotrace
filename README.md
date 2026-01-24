@@ -1,16 +1,16 @@
-# 语迹（EchoTrace）桌面版
+# EchoTrace Desktop
 
-本地语音转写与文本管理工具（Tauri + FastAPI + faster-whisper）。
+Local audio/video transcription and text management tool (Tauri + FastAPI + faster-whisper).
 
-## 产品概览
+## Overview
 
-- 本地导入音视频 → 转写 → 时间轴 → 搜索 → 摘要 → 导出
-- 本地数据库 SQLite + FTS5 全文搜索
-- MCP 接入多模型（OpenAI / Claude / DeepSeek / 豆包 / 本地 LLM）
+- Local import audio/video → transcribe → timeline → search → summarize → export
+- Local database SQLite + FTS5 full-text search
+- MCP integration with multiple models (OpenAI / Claude / DeepSeek / Doubao / Local LLM)
 
-## 运行方式（推荐）
+## Getting Started
 
-### 1) 启动 Core 与 Worker
+### 1) Start Core & Worker
 
 ```bash
 cd apps/core
@@ -21,7 +21,7 @@ python app.py
 python worker.py
 ```
 
-### 2) 启动桌面应用
+### 2) Start Desktop App
 
 ```bash
 cd apps/desktop
@@ -29,23 +29,23 @@ npm install
 npm run tauri dev
 ```
 
-## MCP 配置
+## MCP Configuration
 
-- MCP provider 配置文件会被写入应用数据目录（`mcp-providers.json`）。
-- 可在“模型与密钥”页面进行配置。
-- 也可以用 `MCP_PROVIDERS_PATH` 指向自定义配置。
+- MCP provider config is written to app data directory (`mcp-providers.json`)
+- Configure via "Models & Keys" page in the app
+- Or set `MCP_PROVIDERS_PATH` to point to custom config
 
-## 环境变量
+## Environment Variables
 
-- `ECHOTRACE_CORE_DIR`：Core 目录（默认 `../core`）
-- `ECHOTRACE_PYTHON`：Python 可执行文件（默认 `python3` / Windows `python`）
-- `MCP_PROVIDERS_PATH`：MCP provider 配置路径
+- `ECHOTRACE_CORE_DIR`: Core directory (default: `../core`)
+- `ECHOTRACE_PYTHON`: Python executable (default: `python3` / Windows: `python`)
+- `MCP_PROVIDERS_PATH`: MCP provider config path
 
-## Legacy 目录
+## Legacy Code
 
-旧的 Web/Django 版本已迁移到 `legacy/`，仅用于参考，不建议继续使用。
+Old Web/Django version has been moved to `legacy/`, for reference only. Not recommended for continued use.
 
-## 相关文档
+## Documentation
 
 - `docs/ARCHITECTURE.md`
 - `apps/core/README.md`
