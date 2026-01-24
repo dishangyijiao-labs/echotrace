@@ -1,6 +1,6 @@
-# EchoTrace 桌面版安装与排错
+# EchoTrace Desktop Setup & Troubleshooting
 
-## 运行
+## Running
 
 ```bash
 cd apps/core
@@ -17,14 +17,14 @@ npm install
 npm run tauri dev
 ```
 
-## 环境变量
+## Environment Variables
 
-- `ECHOTRACE_CORE_DIR`：Core 目录（默认 `../core`）
-- `ECHOTRACE_PYTHON`：Python 可执行文件
-- `MCP_PROVIDERS_PATH`：MCP 配置文件路径
+- `ECHOTRACE_CORE_DIR`: Core directory (default: `../core`)
+- `ECHOTRACE_PYTHON`: Python executable
+- `MCP_PROVIDERS_PATH`: MCP config file path
 
-## 常见问题
+## Troubleshooting
 
-- 启动失败：确认 `ffmpeg` 在 PATH 中。
-- 摘要失败：确认 MCP provider 配置已填写 API key。
-- 无音频播放：确认媒体文件路径存在且未移动。
+- Startup fails: Ensure `ffmpeg` is in PATH
+- Summarization fails: Verify MCP provider config has API key filled in
+- No audio playback: Confirm media file path exists and hasn't been moved
