@@ -10,7 +10,8 @@ import {
   SlidersHorizontal,
   FileText,
   Menu,
-  X
+  X,
+  Sparkles
 } from "lucide-react";
 import LanguageSwitcher from "./LanguageSwitcher";
 
@@ -24,6 +25,7 @@ function AppLayout() {
     { name: t('nav.resources'), href: "/resources", icon: Folder },
     { name: t('nav.taskQueue'), href: "/tasks", icon: ListTodo },
     { name: t('nav.results'), href: "/results", icon: FileText },
+    { name: "AI 搜索", href: "/ai-search", icon: Sparkles },
     { name: t('nav.services'), href: "/services", icon: Terminal },
     { name: t('nav.models'), href: "/models", icon: KeyRound },
     { name: t('nav.settings'), href: "/settings", icon: SlidersHorizontal }

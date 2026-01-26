@@ -1,0 +1,18 @@
+# RAG + Agent + LangChain Dependencies
+# Core LangChain
+langchain
+langchain-community
+langchain-openai
+langchain-huggingface
+
+# Vector Store & Embeddings  
+chromadb
+sentence-transformers
+tiktoken
+
+# Agent Tools
+langgraph
+langchain-experimental
+
+# Utilities
+python-dotenv
