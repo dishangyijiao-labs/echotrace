@@ -15,6 +15,15 @@ from mcp_gateway.client import call_tool as mcp_call_tool
 from mcp_gateway.registry import load_providers
 from pipeline.model_manager import get_model_info, is_model_downloaded, download_model
 
+# RAG imports
+try:
+    from rag.vector_store import get_vector_store, sync_all_transcripts_to_vector
+    from rag.retriever import get_retriever
+    from rag.agents import get_search_agent, ClipExtractorAgent
+    RAG_ENABLED = True
+except ImportError:
+    RAG_ENABLED = False
+
 APP_ROOT = Path(__file__).resolve().parent
 DEFAULT_DB_PATH = APP_ROOT / "data" / "app.db"
 SCHEMA_PATH = APP_ROOT / "db" / "schema.sql"
@@ -57,6 +66,17 @@ class SummarizeRequest(BaseModel):
     text: str
     transcript_id: int | None = None
     update_summary: bool = True
+
+
+class SemanticSearchRequest(BaseModel):
+    query: str
+    mode: str = "hybrid"  # "keyword" | "semantic" | "hybrid"
+    limit: int = 20
+
+
+class AgentQueryRequest(BaseModel):
+    query: str
+    agent_type: str = "search"  # "search" | "clip_extractor"
 
 
 @app.on_event("startup")
@@ -370,6 +390,101 @@ def download_model_endpoint(model_name: str, device: str = "cpu") -> dict:
             status_code=500,
             detail=f"Failed to download model '{model_name}'"
         )
+
+
+# ==================== RAG & Agent Endpoints ====================
+
+@app.post("/rag/index")
+def index_transcript_to_vector(transcript_id: int, embedding_provider: str = "local") -> dict:
+    """为指定转录文本建立向量索引"""
+    if not RAG_ENABLED:
+        raise HTTPException(status_code=501, detail="RAG module not installed")
+    
+    with _connect(DEFAULT_DB_PATH) as conn:
+        # 检查转录是否存在
+        transcript = conn.execute("SELECT id FROM transcript WHERE id = ?", (transcript_id,)).fetchone()
+        if not transcript:
+            raise HTTPException(status_code=404, detail="Transcript not found")
+        
+        # 获取分段
+        segments = conn.execute(
+            "SELECT id, start, end, text FROM segment WHERE transcript_id = ?",
+            (transcript_id,),
+        ).fetchall()
+        
+        seg_list = [dict(s) for s in segments]
+    
+    vector_store = get_vector_store(embedding_provider)
+    count = vector_store.index_transcript(transcript_id, seg_list)
+    
+    return {"ok": True, "transcript_id": transcript_id, "indexed_segments": count}
+
+
+@app.post("/rag/sync-all")
+def sync_all_to_vector(embedding_provider: str = "local") -> dict:
+    """同步所有转录文本到向量库"""
+    if not RAG_ENABLED:
+        raise HTTPException(status_code=501, detail="RAG module not installed")
+    
+    result = sync_all_transcripts_to_vector(DEFAULT_DB_PATH, embedding_provider)
+    return {"ok": True, **result}
+
+
+@app.post("/search/semantic")
+def semantic_search(payload: SemanticSearchRequest) -> dict:
+    """语义搜索（支持混合检索）"""
+    if not RAG_ENABLED:
+        raise HTTPException(status_code=501, detail="RAG module not installed")
+    
+    retriever = get_retriever(DEFAULT_DB_PATH)
+    results = retriever.search(payload.query, mode=payload.mode, limit=payload.limit)
+    
+    return {"ok": True, "data": results, "total": len(results), "mode": payload.mode}
+
+
+@app.post("/agent/query")
+def agent_query(payload: AgentQueryRequest) -> dict:
+    """Agent 智能查询"""
+    if not RAG_ENABLED:
+        raise HTTPException(status_code=501, detail="RAG module not installed")
+    
+    if payload.agent_type == "search":
+        agent = get_search_agent()
+        response = agent.run(payload.query)
+        return {"ok": True, "response": response, "agent": "search"}
+    
+    elif payload.agent_type == "clip_extractor":
+        # 先搜索相关片段
+        retriever = get_retriever(DEFAULT_DB_PATH)
+        search_results = retriever.search(payload.query, mode="hybrid", limit=10)
+        
+        # 调用剪辑建议 Agent
+        agent = ClipExtractorAgent()
+        suggestions = agent.suggest_clips(search_results, payload.query)
+        
+        return {
+            "ok": True,
+            "response": suggestions,
+            "agent": "clip_extractor",
+            "related_clips": search_results,
+        }
+    
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown agent type: {payload.agent_type}")
+
+
+@app.get("/rag/status")
+def rag_status() -> dict:
+    """RAG 模块状态"""
+    return {
+        "ok": True,
+        "enabled": RAG_ENABLED,
+        "features": {
+            "semantic_search": RAG_ENABLED,
+            "agent_query": RAG_ENABLED,
+            "hybrid_retrieval": RAG_ENABLED,
+        } if RAG_ENABLED else {}
+    }
 
 
 if __name__ == "__main__":
