@@ -1,113 +1,105 @@
-# EchoTrace Desktop
+# EchoTrace
 
-**Your Video Archive Search Engine** - Find any moment in seconds, not hours.
+**Local Video Archive Search Engine** - Find any moment in your video content instantly.
 
-## 🎬 Built for Content Creators
+## What is EchoTrace?
 
-**The Problem**: You have 100+ hours of video content. Finding a specific clip takes 30 minutes of manual scrubbing.
+EchoTrace transcribes your audio/video files locally and makes them searchable. Built for content creators who need to find specific clips in large video archives.
 
-**The Solution**: Transcribe everything locally, search by keyword, jump to exact timestamp.
-
-### Real Use Case
+### Use Case
 
 ```
-Short-form video team needs clips about "AI" from 50+ long-form videos
+Short-form video team needs clips about "AI" from 50+ long videos
 
-Old way: 2 hours of manual searching
-EchoTrace: 10 seconds
+Without EchoTrace: 2 hours of manual searching
+With EchoTrace: 10 seconds
   1. Search "artificial intelligence"
-  2. See all 23 mentions with timestamps
-  3. Click to play → verify → export timecode
-  4. Import to Premiere Pro
+  2. See all mentions with timestamps
+  3. Click to play → verify → export
 ```
 
-**Time saved per search: 120x**
+**Time saved: 120x faster**
 
-## 💡 Who Is This For?
+## Features
 
-- 📹 **Short-video editors** - Repurpose long-form content into clips
-- 🎙️ **Podcast producers** - Generate show notes and chapter markers
-- 🎓 **Course creators** - Find and repackage specific topics
-- 📺 **MCN content teams** - Manage large video archives
-- 🎬 **Video bloggers** - Quickly recall "that one time I said..."
+- 🎙️ **Local transcription** - Powered by OpenAI Whisper, runs offline
+- 🔍 **Full-text search** - Fast SQLite FTS5 search across all transcripts
+- 🤖 **AI analysis** - Optional semantic search and intelligent summarization
+- 📤 **Multi-format export** - Export to txt, srt, or markdown
+- 🔒 **Privacy-first** - All processing happens on your device
 
-## Core Features
+## Quick Start
 
-- 🎙️ **Local audio/video transcription** (powered by OpenAI Whisper)
-  - Completely offline processing
-  - No internet required for transcription
-  
-- 📊 **Timeline segmentation & full-text search** (SQLite FTS5)
-  - Fast local search across all transcripts
-  - No cloud indexing
-  
-- 📤 **Export to multiple formats** (txt / srt / md)
-  - All processing local
-  
-- 🤖 **Optional AI analysis** (⚠️ privacy trade-offs apply)
-  - **Local LLM**: Requires Ollama, data stays local, performance limited
-  - **Cloud LLM**: OpenAI/Claude/DeepSeek, faster but uploads text to cloud
-  - **Recommendation**: Use local for sensitive content, cloud for public content
+### Prerequisites
 
-## ⚠️ Privacy Trade-offs
+- Python 3.8+
+- Node.js 20+
+- FFmpeg (for audio extraction)
 
-### What's Always Local (100% Private)
-✅ Audio/video file processing  
-✅ Transcription generation  
-✅ Full-text search  
-✅ Export functions  
-
-### What's Optional (Privacy Impact)
-⚠️ **Cloud AI Analysis** (OpenAI/Claude/DeepSeek):
-- Uploads transcript text to third-party servers
-- Faster and higher quality
-- **NOT recommended for sensitive content**
-
-✅ **Local AI Analysis** (Ollama):
-- Runs on your device
-- Data never leaves your computer
-- Slower and quality depends on model size
-- **Recommended for sensitive content**
-
-## Getting Started
-
-### 1) Start Core & Worker
+### Setup
 
 ```bash
-cd apps/core
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python app.py
-python worker.py
-```
+# 1. Configure Python environment
+./setup-python-env.sh
 
-### 2) Start Desktop App
-
-```bash
+# 2. Build desktop app
 cd apps/desktop
-npm install
+./rebuild-package.sh
+
+# 3. Run the app
+open src-tauri/target/release/bundle/macos/EchoTrace.app
+```
+
+## Architecture
+
+- **Desktop App**: Tauri (Rust) + React frontend
+- **Core API**: FastAPI backend (Python)
+- **Worker**: Background transcription processor
+- **Database**: SQLite with FTS5 for fast search
+- **AI/RAG**: Optional LangChain + ChromaDB integration
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for details.
+
+## Privacy
+
+EchoTrace is designed for sensitive content:
+
+- ✅ 100% local processing
+- ✅ No cloud uploads
+- ✅ No telemetry or tracking
+- ✅ Works completely offline
+
+See [docs/PRIVACY.md](docs/PRIVACY.md) for more information.
+
+## Development
+
+```bash
+# Start Core API
+cd apps/core
+source .venv/bin/activate
+python app.py
+
+# Start Worker (in another terminal)
+python worker.py
+
+# Start Desktop (in another terminal)
+cd apps/desktop
 npm run tauri dev
 ```
 
-## MCP Configuration
-
-- MCP provider config is written to app data directory (`mcp-providers.json`)
-- Configure via "Models & Keys" page in the app
-- Or set `MCP_PROVIDERS_PATH` to point to custom config
-
 ## Environment Variables
 
-- `ECHOTRACE_CORE_DIR`: Core directory (default: `../core`)
-- `ECHOTRACE_PYTHON`: Python executable (default: `python3` / Windows: `python`)
-- `MCP_PROVIDERS_PATH`: MCP provider config path
-
-## Legacy Code
-
-Old Web/Django version has been moved to `legacy/`, for reference only. Not recommended for continued use.
+- `ECHOTRACE_CORE_DIR` - Core directory path (default: `../core`)
+- `ECHOTRACE_PYTHON` - Python executable (default: `python3`)
+- `MCP_PROVIDERS_PATH` - Custom MCP config path
 
 ## Documentation
 
-- `docs/ARCHITECTURE.md`
-- `apps/core/README.md`
-- `apps/desktop/README.md`
+- [Architecture Overview](docs/ARCHITECTURE.md)
+- [Privacy Statement](docs/PRIVACY.md)
+- [Core API Documentation](apps/core/README.md)
+- [Desktop App Documentation](apps/desktop/README.md)
+
+## License
+
+MIT

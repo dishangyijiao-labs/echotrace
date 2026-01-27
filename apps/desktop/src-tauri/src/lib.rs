@@ -307,7 +307,36 @@ pub fn run() {
         .setup(|app| {
             let app_handle = app.handle();
             handle_tray(&app_handle)?;
+            
+            // Auto-start core and worker services
+            let state = app.state::<ProcessState>();
+            
+            // Start Core API
+            match start_process(&app_handle, &state.core, "app.py", "core.log") {
+                Ok(_) => println!("✅ Core API started automatically"),
+                Err(e) => eprintln!("⚠️  Failed to start Core API: {}", e),
+            }
+            
+            // Give Core API a moment to start, then start Worker
+            let app_handle_clone = app_handle.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(2));
+                let state = app_handle_clone.state::<ProcessState>();
+                match start_process(&app_handle_clone, &state.worker, "worker.py", "worker.log") {
+                    Ok(_) => println!("✅ Worker started automatically"),
+                    Err(e) => eprintln!("⚠️  Failed to start Worker: {}", e),
+                }
+            });
+            
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            // Clean up processes when app is closing
+            if let tauri::WindowEvent::CloseRequested { .. } = event {
+                let state = window.state::<ProcessState>();
+                let _ = stop_process(&state.worker);
+                let _ = stop_process(&state.core);
+            }
         })
         .invoke_handler(tauri::generate_handler![
             start_core,
