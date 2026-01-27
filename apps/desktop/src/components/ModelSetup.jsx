@@ -26,7 +26,7 @@ const ModelSetup = ({ onComplete }) => {
         setTimeout(() => onComplete?.(), 1500);
       }
     } catch (err) {
-      setError('无法连接到 Core API，请确保服务已启动');
+      setError('无法连接到 Core API - 服务可能还在启动中，请稍后刷新页面');
     }
   };
 
