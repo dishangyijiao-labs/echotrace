@@ -15,14 +15,26 @@ from mcp_gateway.client import call_tool as mcp_call_tool
 from mcp_gateway.registry import load_providers
 from pipeline.model_manager import get_model_info, is_model_downloaded, download_model
 
-# RAG imports
-try:
-    from rag.vector_store import get_vector_store, sync_all_transcripts_to_vector
-    from rag.retriever import get_retriever
-    from rag.agents import get_search_agent, ClipExtractorAgent
-    RAG_ENABLED = True
-except ImportError:
+# RAG imports - 语义搜索功能（可选）
+# 设置 ECHOTRACE_SEMANTIC_SEARCH=true 启用语义搜索（需要下载模型）
+# 默认只用全文搜索（无需模型，立即可用）
+import os
+SEMANTIC_SEARCH_ENABLED = os.getenv("ECHOTRACE_SEMANTIC_SEARCH", "false").lower() == "true"
+
+if SEMANTIC_SEARCH_ENABLED:
+    try:
+        from rag.vector_store import get_vector_store, sync_all_transcripts_to_vector
+        from rag.retriever import get_retriever
+        from rag.agents import get_search_agent, ClipExtractorAgent
+        RAG_ENABLED = True
+        print("✅ 语义搜索已启用（需要下载嵌入模型）")
+    except ImportError as e:
+        RAG_ENABLED = False
+        print(f"⚠️ 语义搜索模块加载失败: {e}")
+else:
     RAG_ENABLED = False
+    print("ℹ️ 使用全文搜索模式（无需下载模型，立即可用）")
+    print("   如需启用语义搜索，设置环境变量: export ECHOTRACE_SEMANTIC_SEARCH=true")
 
 APP_ROOT = Path(__file__).resolve().parent
 DEFAULT_DB_PATH = APP_ROOT / "data" / "app.db"

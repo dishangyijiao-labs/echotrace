@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Play, RefreshCw } from "lucide-react";
 import api from "../lib/api";
+import { formatDateTime } from "../lib/utils";
 
 const STATUS_LABELS = {
   queued: "排队中",
@@ -252,7 +253,7 @@ function TaskQueue() {
                         {renderSparkline(job.id)}
                       </div>
                     </td>
-                    <td className="text-xs text-gray-500">{job.updated_at}</td>
+                    <td className="text-xs text-gray-500">{formatDateTime(job.updated_at)}</td>
                   </tr>
                 );
               })}

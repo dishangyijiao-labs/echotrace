@@ -66,20 +66,56 @@ struct ProcessStatus {
     worker_running: bool,
 }
 
-fn python_command() -> String {
-    env::var("ECHOTRACE_PYTHON").unwrap_or_else(|_| {
-        if cfg!(windows) {
-            "python".to_string()
-        } else {
-            "python3".to_string()
-        }
-    })
+fn python_command() -> PathBuf {
+    // Use virtual environment Python
+    let core = core_dir();
+    let venv_python = core.join(".venv").join("bin").join("python3");
+    
+    // Fallback to system Python if venv doesn't exist
+    if venv_python.exists() {
+        venv_python
+    } else {
+        PathBuf::from(
+            env::var("ECHOTRACE_PYTHON").unwrap_or_else(|_| {
+                if cfg!(windows) {
+                    "python".to_string()
+                } else {
+                    "python3".to_string()
+                }
+            })
+        )
+    }
 }
 
 fn core_dir() -> PathBuf {
-    env::var("ECHOTRACE_CORE_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("../core"))
+    if let Ok(dir) = env::var("ECHOTRACE_CORE_DIR") {
+        return PathBuf::from(dir);
+    }
+    
+    // Try to find core directory relative to the executable
+    if let Ok(exe) = env::current_exe() {
+        // For .app bundles: EchoTrace.app/Contents/MacOS/EchoTrace
+        // We need to go up and find the project root
+        if let Some(parent) = exe.parent() {
+            // Try going up several levels to find apps/core
+            let core_path = parent
+                .parent()  // Contents
+                .and_then(|p: &std::path::Path| p.parent())  // EchoTrace.app
+                .and_then(|p: &std::path::Path| p.parent())  // macos
+                .and_then(|p: &std::path::Path| p.parent())  // bundle
+                .and_then(|p: &std::path::Path| p.parent())  // release
+                .map(|p: &std::path::Path| p.join("apps").join("core"));
+            
+            if let Some(path) = core_path {
+                if path.exists() {
+                    return path;
+                }
+            }
+        }
+    }
+    
+    // Fallback to relative path (for development)
+    PathBuf::from("../core")
 }
 
 fn log_path(app: &AppHandle, name: &str) -> Result<PathBuf, String> {
