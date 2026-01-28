@@ -38,11 +38,19 @@ class EmbeddingService:
             )
         else:
             # 本地 Sentence Transformers
+            # 首次使用会自动下载模型
             EMBEDDINGS_CACHE.mkdir(parents=True, exist_ok=True)
+            
+            # 推荐模型选择（按大小排序）：
+            # - BAAI/bge-small-zh-v1.5: 102MB, 轻量快速, 中文优化 ⭐⭐⭐⭐ (推荐)
+            # - sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2: 471MB, 50+语言
+            # - maidalun1020/bce-embedding-base_v1: 1.1GB, RAG专用 (太大)
+            # - BAAI/bge-m3: 2.3GB, SOTA性能 (太大)
+            default_model = model or "BAAI/bge-small-zh-v1.5"
+            
             return HuggingFaceEmbeddings(
-                model_name=model or "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+                model_name=default_model,
                 cache_folder=str(EMBEDDINGS_CACHE),
-                # 多语言模型，支持中英文
                 model_kwargs={"device": "cpu"},  # 桌面版默认 CPU
                 encode_kwargs={"normalize_embeddings": True},
             )
