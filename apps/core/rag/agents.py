@@ -1,5 +1,6 @@
 """
-Agent 服务 - 基于 LangChain/LangGraph
+简化的搜索服务 - 不依赖复杂的 Agent 框架
+提供基于 RAG 的智能搜索功能
 """
 from __future__ import annotations
 
@@ -7,10 +8,11 @@ import os
 from pathlib import Path
 from typing import List, Dict, Any
 
-from langchain.agents import AgentExecutor, create_react_agent
-from langchain.prompts import PromptTemplate
-from langchain.tools import Tool
-from langchain_openai import ChatOpenAI
+try:
+    from langchain_openai import ChatOpenAI
+    LLM_AVAILABLE = True
+except ImportError:
+    LLM_AVAILABLE = False
 
 from rag.retriever import get_retriever
 
@@ -18,67 +20,10 @@ APP_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DB_PATH = APP_ROOT / "data" / "app.db"
 
 
-# ==================== Agent 工具定义 ====================
-
-def create_search_tool(db_path: Path) -> Tool:
-    """创建搜索工具"""
-    retriever = get_retriever(db_path)
-
-    def search_videos(query: str) -> str:
-        """搜索视频内容，返回相关片段"""
-        results = retriever.search(query, mode="hybrid", limit=5)
-        if not results:
-            return "未找到相关内容"
-        
-        output = []
-        for i, r in enumerate(results, 1):
-            output.append(
-                f"{i}. [{r['filename']}] {r['start']:.1f}s-{r['end']:.1f}s\n"
-                f"   {r['text']}\n"
-                f"   (来源: {r['source']}, 分数: {r['score']:.3f})"
-            )
-        return "\n\n".join(output)
-
-    return Tool(
-        name="search_videos",
-        func=search_videos,
-        description="搜索视频库中的内容。输入：搜索关键词或问题。输出：相关视频片段及时间戳。",
-    )
-
-
-def create_timestamp_tool(db_path: Path) -> Tool:
-    """创建时间戳定位工具"""
-    import sqlite3
-
-    def find_exact_moment(description: str) -> str:
-        """根据描述精确定位视频时刻"""
-        retriever = get_retriever(db_path)
-        results = retriever.search(description, mode="semantic", limit=3)
-        
-        if not results:
-            return "未找到匹配的时刻"
-        
-        # 返回最匹配的结果
-        best = results[0]
-        return (
-            f"找到最佳匹配：\n"
-            f"文件：{best['filename']}\n"
-            f"时间：{best['start']:.1f}s - {best['end']:.1f}s\n"
-            f"内容：{best['text']}\n"
-            f"置信度：{best['score']:.2f}"
-        )
-
-    return Tool(
-        name="find_exact_moment",
-        func=find_exact_moment,
-        description="根据描述精确定位视频中的某个时刻。输入：对视频内容的描述。输出：精确的时间戳和文件名。",
-    )
-
-
-# ==================== Agent 定义 ====================
+# ==================== 简化的搜索服务 ====================
 
 class VideoSearchAgent:
-    """视频搜索 Agent"""
+    """视频搜索服务（简化版）"""
 
     def __init__(
         self,
@@ -87,77 +32,77 @@ class VideoSearchAgent:
         api_key: str | None = None,
     ):
         self.db_path = db_path
+        self.retriever = get_retriever(db_path)
         
-        # 初始化 LLM
-        self.llm = ChatOpenAI(
-            model=model,
-            api_key=api_key or os.getenv("OPENAI_API_KEY"),
-            temperature=0,
-        )
-        
-        # 创建工具
-        self.tools = [
-            create_search_tool(db_path),
-            create_timestamp_tool(db_path),
-        ]
-        
-        # ReAct Prompt
-        self.prompt = PromptTemplate.from_template(
-            """你是一个视频内容搜索助手，帮助用户快速找到视频中的特定片段。
-
-你可以使用以下工具：
-{tools}
-
-工具名称: {tool_names}
-
-请使用以下格式回答：
-
-Question: 用户的问题
-Thought: 思考应该采取什么行动
-Action: 要使用的工具名称，从 [{tool_names}] 中选择
-Action Input: 传递给工具的输入
-Observation: 工具返回的结果
-... (可以重复 Thought/Action/Action Input/Observation 多次)
-Thought: 我现在知道最终答案了
-Final Answer: 对用户问题的最终答案
-
-开始！
-
-Question: {input}
-Thought: {agent_scratchpad}
-"""
-        )
-        
-        # 创建 Agent
-        self.agent = create_react_agent(self.llm, self.tools, self.prompt)
-        self.executor = AgentExecutor(
-            agent=self.agent,
-            tools=self.tools,
-            verbose=True,
-            handle_parsing_errors=True,
-            max_iterations=5,
-        )
+        # 初始化 LLM（如果可用）
+        if LLM_AVAILABLE:
+            self.llm = ChatOpenAI(
+                model=model,
+                api_key=api_key or os.getenv("OPENAI_API_KEY"),
+                temperature=0,
+            )
+        else:
+            self.llm = None
 
     def run(self, query: str) -> str:
-        """运行 Agent 处理查询"""
+        """运行搜索查询"""
         try:
-            result = self.executor.invoke({"input": query})
-            return result.get("output", "抱歉，无法处理您的请求")
+            # 1. 使用混合检索获取结果
+            results = self.retriever.search(query, mode="hybrid", limit=5)
+            
+            if not results:
+                return "未找到相关内容"
+            
+            # 2. 格式化结果
+            output = []
+            for i, r in enumerate(results, 1):
+                output.append(
+                    f"{i}. [{r['filename']}] {r['start']:.1f}s-{r['end']:.1f}s\n"
+                    f"   {r['text']}\n"
+                    f"   (相关度: {r['score']:.3f})"
+                )
+            
+            formatted_results = "\n\n".join(output)
+            
+            # 3. 如果有 LLM，生成更智能的回答
+            if self.llm:
+                try:
+                    prompt = f"""根据以下搜索结果，简洁地回答用户的问题。
+
+用户问题：{query}
+
+搜索结果：
+{formatted_results}
+
+请提供：
+1. 直接回答用户的问题
+2. 引用最相关的片段（包括文件名和时间戳）
+3. 如果有多个相关片段，简要说明它们的关联
+"""
+                    response = self.llm.invoke(prompt)
+                    return response.content
+                except Exception as e:
+                    # LLM 调用失败，返回原始结果
+                    return f"搜索结果：\n\n{formatted_results}"
+            else:
+                return f"搜索结果：\n\n{formatted_results}"
+                
         except Exception as e:
-            return f"处理出错：{str(e)}"
+            return f"搜索出错：{str(e)}"
 
-
-# ==================== 多 Agent 协作示例 ====================
 
 class ClipExtractorAgent:
-    """视频片段提取建议 Agent"""
+    """视频片段提取建议服务"""
 
     def __init__(self, model: str = "gpt-4o-mini", api_key: str | None = None):
-        self.llm = ChatOpenAI(
-            model=model,
-            api_key=api_key or os.getenv("OPENAI_API_KEY"),
-            temperature=0.3,
-        )
+        if LLM_AVAILABLE:
+            self.llm = ChatOpenAI(
+                model=model,
+                api_key=api_key or os.getenv("OPENAI_API_KEY"),
+                temperature=0.3,
+            )
+        else:
+            self.llm = None
 
     def suggest_clips(self, search_results: List[Dict[str, Any]], theme: str) -> str:
         """
@@ -172,6 +117,14 @@ class ClipExtractorAgent:
         """
         if not search_results:
             return "没有可用的片段"
+        
+        if not self.llm:
+            # 没有 LLM，返回简单的列表
+            clips_text = "\n".join([
+                f"- [{r['filename']}] {r['start']:.1f}s-{r['end']:.1f}s: {r['text']}"
+                for r in search_results
+            ])
+            return f"找到以下片段：\n{clips_text}"
         
         # 构建 prompt
         clips_text = "\n".join([
@@ -191,17 +144,20 @@ class ClipExtractorAgent:
 
 请以清晰的列表形式回答。"""
 
-        response = self.llm.invoke(prompt)
-        return response.content
+        try:
+            response = self.llm.invoke(prompt)
+            return response.content
+        except Exception as e:
+            return f"生成建议失败：{str(e)}\n\n原始片段列表：\n{clips_text}"
 
 
 # 单例
 _search_agent: VideoSearchAgent | None = None
 
 
-def get_search_agent() -> VideoSearchAgent:
-    """获取搜索 Agent 单例"""
+def get_search_agent(db_path: Path = DEFAULT_DB_PATH) -> VideoSearchAgent:
+    """获取搜索服务单例"""
     global _search_agent
     if _search_agent is None:
-        _search_agent = VideoSearchAgent()
+        _search_agent = VideoSearchAgent(db_path)
     return _search_agent
