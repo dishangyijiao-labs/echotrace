@@ -71,3 +71,6 @@ apps/desktop/.vite/
 # Whisper models cache
 .cache/
 ~/.cache/huggingface/
+
+# Embeddings cache
+apps/core/data/embeddings_cache/
