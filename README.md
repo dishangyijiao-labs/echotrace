@@ -32,14 +32,14 @@ With EchoTrace: 10 seconds
 
 ### Prerequisites
 
-- Python 3.8+
+- Python 3.12
 - Node.js 20+
 - FFmpeg (for audio extraction)
 
 ### Setup
 
 ```bash
-# 1. Configure Python environment
+# 1. Configure Python 3.12 environment
 ./setup-python-env.sh
 
 # 2. Build desktop app
@@ -90,7 +90,7 @@ npm run tauri dev
 ## Environment Variables
 
 - `ECHOTRACE_CORE_DIR` - Core directory path (default: `../core`)
-- `ECHOTRACE_PYTHON` - Python executable (default: `python3`)
+- `ECHOTRACE_PYTHON` - Python executable (default: `python3.12`)
 - `MCP_PROVIDERS_PATH` - Custom MCP config path
 
 ## Documentation
