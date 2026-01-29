@@ -71,7 +71,7 @@ Services are managed by Tauri and stop when app closes.
 
 Environment variables:
 - `ECHOTRACE_CORE_DIR` - Core directory (default: `../core`)
-- `ECHOTRACE_PYTHON` - Python executable (default: `python3`)
+- `ECHOTRACE_PYTHON` - Python executable (default: `python3.12`)
 - `MCP_PROVIDERS_PATH` - MCP config file path
 
 ## System Tray
@@ -82,7 +82,6 @@ The app runs with a system tray icon that allows:
 
 ## Scripts
 
-- `check-python-env.sh` - Verify Python environment is configured
 - `rebuild-package.sh` - Clean build and package the app
 
 ## Project Structure

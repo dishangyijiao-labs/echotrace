@@ -1,71 +1,104 @@
 #!/bin/bash
-# 配置 EchoTrace Python 环境
+# Setup EchoTrace Python environment
 
 set -e
 
 echo "======================================"
-echo "配置 EchoTrace Python 环境"
+echo "Setup EchoTrace Python Environment"
 echo "======================================"
 echo ""
 
 cd "$(dirname "$0")/apps/core"
 
-# 检查 Python
-echo "📌 步骤 1/4: 检查 Python"
-if ! command -v python3 &> /dev/null; then
-    echo "   ❌ Python3 未找到，请先安装 Python 3.8+"
-    exit 1
-fi
-PYTHON_VERSION=$(python3 --version)
-echo "   ✅ $PYTHON_VERSION"
-echo ""
-
-# 创建/重建虚拟环境
-echo "📌 步骤 2/4: 配置虚拟环境"
-if [ -d ".venv" ]; then
-    echo "   虚拟环境已存在，检查完整性..."
-    if [ ! -f ".venv/bin/python3" ]; then
-        echo "   ⚠️  虚拟环境不完整，重新创建..."
-        rm -rf .venv
-        python3 -m venv .venv
+# Check Python 3.12
+echo "📌 Step 1/4: Check Python 3.12 (required)"
+PYTHON_CMD=""
+if command -v python3.12 &> /dev/null; then
+    PYTHON_CMD="python3.12"
+    echo "   ✅ Found python3.12"
+elif command -v python3 &> /dev/null; then
+    PYTHON_VERSION=$(python3 --version | cut -d' ' -f2 | cut -d'.' -f1,2)
+    if [ "$PYTHON_VERSION" = "3.12" ]; then
+        PYTHON_CMD="python3"
+        echo "   ✅ Current python3 is version 3.12"
     else
-        echo "   ✅ 虚拟环境完整"
+        echo "   ❌ Current Python version is $PYTHON_VERSION, requires 3.12"
+        echo "   Please install Python 3.12:"
+        echo "   - Using pyenv: pyenv install 3.12.7 && pyenv local 3.12.7"
+        echo "   - Using Homebrew: brew install python@3.12"
+        exit 1
     fi
 else
-    echo "   创建虚拟环境..."
-    python3 -m venv .venv
+    echo "   ❌ Python3 not found, please install Python 3.12 first"
+    echo "   - Using pyenv: pyenv install 3.12.7"
+    echo "   - Using Homebrew: brew install python@3.12"
+    exit 1
+fi
+
+PYTHON_VERSION=$($PYTHON_CMD --version)
+echo "   Using: $PYTHON_VERSION"
+echo ""
+
+# Create/rebuild virtual environment
+echo "📌 Step 2/4: Configure virtual environment (Python 3.12)"
+if [ -d ".venv" ]; then
+    echo "   Virtual environment exists, checking Python version..."
+    if [ -f ".venv/bin/python3" ]; then
+        VENV_VERSION=$(.venv/bin/python3 --version 2>&1 | cut -d' ' -f2 | cut -d'.' -f1,2)
+        if [ "$VENV_VERSION" != "3.12" ]; then
+            echo "   ⚠️  Virtual environment uses Python $VENV_VERSION, requires 3.12"
+            echo "   Removing old virtual environment..."
+            rm -rf .venv
+            echo "   Creating new virtual environment with Python 3.12..."
+            $PYTHON_CMD -m venv .venv
+        else
+            echo "   ✅ Virtual environment uses Python 3.12"
+        fi
+    else
+        echo "   ⚠️  Virtual environment incomplete, recreating..."
+        rm -rf .venv
+        $PYTHON_CMD -m venv .venv
+    fi
+else
+    echo "   Creating virtual environment (Python 3.12)..."
+    $PYTHON_CMD -m venv .venv
 fi
 echo ""
 
-# 升级 pip
-echo "📌 步骤 3/4: 升级 pip"
-.venv/bin/pip install --upgrade pip
+# Upgrade pip
+echo "📌 Step 3/4: Upgrade pip"
+.venv/bin/pip install --upgrade pip setuptools wheel
 echo ""
 
-# 安装依赖
-echo "📌 步骤 4/4: 安装依赖"
+# Install dependencies
+echo "📌 Step 4/4: Install dependencies (with av support)"
 echo ""
-echo "   安装基础依赖 (requirements.txt)..."
-.venv/bin/pip install -r requirements.txt
+echo "   Using Python 3.12 specific installation script..."
+if [ -f "install-python312.sh" ]; then
+    ./install-python312.sh
+else
+    echo "   ❌ Missing install-python312.sh, please check repository files are complete"
+    exit 1
+fi
 
 echo ""
-read -p "   是否安装 RAG/Agent 依赖? (可选，支持 AI 搜索功能) [y/N] " -n 1 -r
+read -p "   Install RAG/Agent dependencies? (optional, enables AI search features) [y/N] " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    echo "   安装 RAG 依赖 (requirements-rag.txt)..."
+    echo "   Installing RAG dependencies (requirements-rag.txt)..."
     .venv/bin/pip install -r requirements-rag.txt
 fi
 
 echo ""
 echo "======================================"
-echo "✅ Python 环境配置完成！"
+echo "✅ Python environment setup completed!"
 echo "======================================"
 echo ""
-echo "🧪 测试环境:"
+echo "🧪 Testing environment:"
 echo ""
 
-# 测试导入关键库
-echo "   测试关键依赖..."
+# Test importing key libraries
+echo "   Testing key dependencies..."
 .venv/bin/python3 << 'PYEOF'
 import sys
 try:
@@ -75,14 +108,14 @@ try:
     print("   ✅ Uvicorn")
     import faster_whisper
     print("   ✅ faster-whisper")
-    print("\n   ✅ 所有核心依赖已安装！")
+    print("\n   ✅ All core dependencies installed!")
 except ImportError as e:
-    print(f"\n   ❌ 缺少依赖: {e}")
+    print(f"\n   ❌ Missing dependency: {e}")
     sys.exit(1)
 PYEOF
 
 echo ""
-echo "🚀 现在可以："
-echo "   1. 重新打包应用: cd ../desktop && ./rebuild-package.sh"
-echo "   2. 或手动启动服务测试: .venv/bin/python3 app.py"
+echo "🚀 You can now:"
+echo "   1. Rebuild the app: cd ../desktop && ./rebuild-package.sh"
+echo "   2. Or manually start services for testing: .venv/bin/python3 app.py"
 echo ""

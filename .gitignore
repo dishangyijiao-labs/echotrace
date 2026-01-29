@@ -44,6 +44,8 @@ apps/desktop/logs/
 
 # Core (FastAPI) specific
 apps/core/data/*.db
+apps/core/data/*.db-shm
+apps/core/data/*.db-wal
 apps/core/data/*.sqlite
 apps/core/data/*.sqlite3
 apps/core/exports/
