@@ -88,33 +88,62 @@ fn python_command() -> PathBuf {
 }
 
 fn core_dir() -> PathBuf {
+    // 1. Check environment variable first
     if let Ok(dir) = env::var("ECHOTRACE_CORE_DIR") {
-        return PathBuf::from(dir);
+        let path = PathBuf::from(&dir);
+        if path.exists() {
+            return path;
+        }
     }
     
-    // Try to find core directory relative to the executable
+    // 2. Try to find core directory relative to the executable
     if let Ok(exe) = env::current_exe() {
-        // For .app bundles: EchoTrace.app/Contents/MacOS/EchoTrace
-        // We need to go up and find the project root
-        if let Some(parent) = exe.parent() {
-            // Try going up several levels to find apps/core
-            let core_path = parent
-                .parent()  // Contents
-                .and_then(|p: &std::path::Path| p.parent())  // EchoTrace.app
-                .and_then(|p: &std::path::Path| p.parent())  // macos
-                .and_then(|p: &std::path::Path| p.parent())  // bundle
-                .and_then(|p: &std::path::Path| p.parent())  // release
-                .map(|p: &std::path::Path| p.join("apps").join("core"));
+        // Get the directory containing the executable
+        if let Some(exe_dir) = exe.parent() {
+            // Try multiple possible locations
+            let candidates = vec![
+                // Development mode: running from src-tauri/target/debug or release
+                // Executable: apps/desktop/src-tauri/target/debug/echotrace
+                // Core: apps/core
+                exe_dir.join("../../../..").join("core"),
+                exe_dir.join("../../../../apps/core"),
+                
+                // Packaged .app bundle: EchoTrace.app/Contents/MacOS/echotrace
+                // Looking for sibling apps/core in project root
+                exe_dir.join("../../../..").join("apps/core"),
+                exe_dir.join("../../../../..").join("apps/core"),
+                exe_dir.join("../../../../../..").join("apps/core"),
+                
+                // Release bundle: target/release/bundle/macos/EchoTrace.app/Contents/MacOS/
+                exe_dir.join("../../../../../../..").join("apps/core"),
+                exe_dir.join("../../../../../../../apps/core"),
+            ];
             
-            if let Some(path) = core_path {
-                if path.exists() {
-                    return path;
+            for candidate in candidates {
+                if let Ok(canonical) = candidate.canonicalize() {
+                    if canonical.join("app.py").exists() {
+                        return canonical;
+                    }
                 }
             }
         }
     }
     
-    // Fallback to relative path (for development)
+    // 3. Try current working directory relative path (development fallback)
+    let cwd_relative = PathBuf::from("../core");
+    if cwd_relative.join("app.py").exists() {
+        return cwd_relative;
+    }
+    
+    // 4. Try absolute path based on common development location
+    let home = env::var("HOME").unwrap_or_default();
+    let dev_path = PathBuf::from(&home)
+        .join("CS/work/magnetu/apps/echotrace/apps/core");
+    if dev_path.exists() {
+        return dev_path;
+    }
+    
+    // Last resort fallback
     PathBuf::from("../core")
 }
 
