@@ -1,9 +1,11 @@
 use std::{
     env,
     fs::{self, OpenOptions},
+    net::TcpStream,
     path::PathBuf,
     process::{Child, Command, Stdio},
     sync::Mutex,
+    time::Duration,
 };
 
 use tauri::{
@@ -60,6 +62,14 @@ struct ProcessState {
     worker: Mutex<Option<Child>>,
 }
 
+impl Drop for ProcessState {
+    fn drop(&mut self) {
+        // Ensure processes are stopped when ProcessState is dropped
+        let _ = stop_process(&self.worker);
+        let _ = stop_process(&self.core);
+    }
+}
+
 #[derive(serde::Serialize)]
 struct ProcessStatus {
     core_running: bool,
@@ -75,15 +85,13 @@ fn python_command() -> PathBuf {
     if venv_python.exists() {
         venv_python
     } else {
-        PathBuf::from(
-            env::var("ECHOTRACE_PYTHON").unwrap_or_else(|_| {
-                if cfg!(windows) {
-                    "python".to_string()
-                } else {
-                    "python3".to_string()
-                }
-            })
-        )
+        PathBuf::from(env::var("ECHOTRACE_PYTHON").unwrap_or_else(|_| {
+            if cfg!(windows) {
+                "python".to_string()
+            } else {
+                "python3.12".to_string()
+            }
+        }))
     }
 }
 
@@ -102,21 +110,19 @@ fn core_dir() -> PathBuf {
         if let Some(exe_dir) = exe.parent() {
             // Try multiple possible locations
             let candidates = vec![
+                // Packaged .app bundle: EchoTrace.app/Contents/MacOS/echotrace
+                // Core should be in: EchoTrace.app/Contents/Resources/core
+                exe_dir.join("../../Resources/core"),
+                
                 // Development mode: running from src-tauri/target/debug or release
                 // Executable: apps/desktop/src-tauri/target/debug/echotrace
                 // Core: apps/core
                 exe_dir.join("../../../..").join("core"),
                 exe_dir.join("../../../../apps/core"),
                 
-                // Packaged .app bundle: EchoTrace.app/Contents/MacOS/echotrace
-                // Looking for sibling apps/core in project root
+                // Alternative development paths
                 exe_dir.join("../../../..").join("apps/core"),
                 exe_dir.join("../../../../..").join("apps/core"),
-                exe_dir.join("../../../../../..").join("apps/core"),
-                
-                // Release bundle: target/release/bundle/macos/EchoTrace.app/Contents/MacOS/
-                exe_dir.join("../../../../../../..").join("apps/core"),
-                exe_dir.join("../../../../../../../apps/core"),
             ];
             
             for candidate in candidates {
@@ -216,6 +222,15 @@ fn is_running(target: &Mutex<Option<Child>>) -> bool {
     false
 }
 
+/// Check if a port is listening (service is running)
+fn is_port_listening(port: u16) -> bool {
+    TcpStream::connect_timeout(
+        &format!("127.0.0.1:{}", port).parse().unwrap(),
+        Duration::from_millis(500),
+    )
+    .is_ok()
+}
+
 fn start_process(
     app: &AppHandle,
     target: &Mutex<Option<Child>>,
@@ -265,10 +280,27 @@ fn stop_worker(state: State<'_, ProcessState>) -> Result<bool, String> {
 
 #[tauri::command]
 fn process_status(state: State<'_, ProcessState>) -> ProcessStatus {
+    // Use port detection as primary method (more reliable with Uvicorn reloader)
+    // Core API runs on port 8787
+    let core_running = is_port_listening(8787) || is_running(&state.core);
+    
+    // Worker doesn't have a port, so we check process status
+    // But also check if there's a worker process running via ps
+    let worker_running = is_running(&state.worker) || check_worker_process();
+    
     ProcessStatus {
-        core_running: is_running(&state.core),
-        worker_running: is_running(&state.worker),
+        core_running,
+        worker_running,
     }
+}
+
+/// Check if worker.py process is running
+fn check_worker_process() -> bool {
+    Command::new("pgrep")
+        .args(["-f", "worker.py"])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
 }
 
 #[tauri::command]
@@ -373,23 +405,69 @@ pub fn run() {
             let app_handle = app.handle();
             handle_tray(&app_handle)?;
             
-            // Auto-start core and worker services
-            let state = app.state::<ProcessState>();
-            
-            // Start Core API
-            match start_process(&app_handle, &state.core, "app.py", "core.log") {
-                Ok(_) => println!("✅ Core API started automatically"),
-                Err(e) => eprintln!("⚠️  Failed to start Core API: {}", e),
-            }
-            
-            // Give Core API a moment to start, then start Worker
+            // Auto-start core and worker services in background
             let app_handle_clone = app_handle.clone();
             std::thread::spawn(move || {
-                std::thread::sleep(std::time::Duration::from_secs(2));
                 let state = app_handle_clone.state::<ProcessState>();
-                match start_process(&app_handle_clone, &state.worker, "worker.py", "worker.log") {
-                    Ok(_) => println!("✅ Worker started automatically"),
-                    Err(e) => eprintln!("⚠️  Failed to start Worker: {}", e),
+                
+                // Start Core API
+                match start_process(&app_handle_clone, &state.core, "app.py", "core.log") {
+                    Ok(started) => {
+                        if started {
+                            eprintln!("✅ Core API process started");
+                            
+                            // Wait for Core API to be ready (check port 8787)
+                            let mut retries = 0;
+                            let max_retries = 30; // 30 seconds timeout
+                            while retries < max_retries {
+                                if is_port_listening(8787) {
+                                    eprintln!("✅ Core API is ready on port 8787");
+                                    
+                                    // Start Worker after Core API is ready
+                                    std::thread::sleep(std::time::Duration::from_secs(1));
+                                    match start_process(&app_handle_clone, &state.worker, "worker.py", "worker.log") {
+                                        Ok(worker_started) => {
+                                            if worker_started {
+                                                eprintln!("✅ Worker started automatically");
+                                            } else {
+                                                eprintln!("ℹ️  Worker was already running");
+                                            }
+                                        }
+                                        Err(e) => {
+                                            eprintln!("⚠️  Failed to start Worker: {}", e);
+                                        }
+                                    }
+                                    return;
+                                }
+                                std::thread::sleep(std::time::Duration::from_secs(1));
+                                retries += 1;
+                            }
+                            eprintln!("⚠️  Core API did not become ready within {} seconds", max_retries);
+                        } else {
+                            eprintln!("ℹ️  Core API was already running");
+                            
+                            // Core already running, start worker anyway
+                            std::thread::sleep(std::time::Duration::from_secs(1));
+                            match start_process(&app_handle_clone, &state.worker, "worker.py", "worker.log") {
+                                Ok(worker_started) => {
+                                    if worker_started {
+                                        eprintln!("✅ Worker started automatically");
+                                    } else {
+                                        eprintln!("ℹ️  Worker was already running");
+                                    }
+                                }
+                                Err(e) => {
+                                    eprintln!("⚠️  Failed to start Worker: {}", e);
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("⚠️  Failed to start Core API: {}", e);
+                        eprintln!("   Please check Python environment and core directory");
+                        eprintln!("   Core dir: {:?}", core_dir());
+                        eprintln!("   Python: {:?}", python_command());
+                    }
                 }
             });
             

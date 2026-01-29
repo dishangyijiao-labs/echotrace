@@ -2,12 +2,23 @@
 
 Local core service for the desktop app.
 
+## Requirements
+
+- Python 3.12
+- FFmpeg (for audio extraction)
+
 ## Setup
 
+From repo root:
+
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+./setup-python-env.sh
+```
+
+Or from this directory:
+
+```bash
+./install-python312.sh
 ```
 
 ## Run

@@ -88,11 +88,11 @@ function AISearch() {
       } else {
         // 语义/混合搜索（需要 RAG）
         response = await api.post("/search/semantic", {
-          query: searchQuery,
-          mode: searchMode,
-          limit: 20,
-        });
-        setSearchResults(response.data?.data || []);
+        query: searchQuery,
+        mode: searchMode,
+        limit: 20,
+      });
+      setSearchResults(response.data?.data || []);
       }
     } catch (error) {
       console.error("Search failed:", error);
@@ -154,23 +154,23 @@ function AISearch() {
           )}
           
           {ragStatus.enabled && (
-            <button
-              onClick={handleSyncAll}
-              disabled={syncing}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
-            >
-              {syncing ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  同步中...
-                </>
-              ) : (
-                <>
-                  <Database className="w-4 h-4" />
-                  同步向量库
-                </>
-              )}
-            </button>
+        <button
+          onClick={handleSyncAll}
+          disabled={syncing}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+        >
+          {syncing ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              同步中...
+            </>
+          ) : (
+            <>
+              <Database className="w-4 h-4" />
+              同步向量库
+            </>
+          )}
+        </button>
           )}
         </div>
       </div>
@@ -238,17 +238,17 @@ function AISearch() {
                     checked={searchMode === "hybrid"}
                     onChange={(e) => setSearchMode(e.target.value)}
                   />
-                  <span>混合检索（推荐）</span>
-                </label>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    value="semantic"
-                    checked={searchMode === "semantic"}
-                    onChange={(e) => setSearchMode(e.target.value)}
-                  />
-                  <span>语义检索</span>
-                </label>
+              <span>混合检索（推荐）</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                value="semantic"
+                checked={searchMode === "semantic"}
+                onChange={(e) => setSearchMode(e.target.value)}
+              />
+              <span>语义检索</span>
+            </label>
               </>
             )}
           </div>
@@ -277,9 +277,9 @@ function AISearch() {
                         {result.source}
                       </span>
                       {result.score < 1 && (
-                        <span className="ml-2 text-xs text-gray-400">
+                      <span className="ml-2 text-xs text-gray-400">
                           相似度: {result.score?.toFixed(3)}
-                        </span>
+                      </span>
                       )}
                     </div>
                   </div>
@@ -293,76 +293,76 @@ function AISearch() {
 
       {/* Agent 查询 - 只有 RAG 启用时显示 */}
       {ragStatus.enabled && ragStatus.features?.agent_query && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Bot className="w-5 h-5 text-purple-500" />
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Bot className="w-5 h-5 text-purple-500" />
             <h2 className="text-xl font-semibold">AI 智能助手</h2>
             <span className="text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded">
               需要配置 LLM API
             </span>
+        </div>
+        
+        <form onSubmit={handleAgentQuery} className="space-y-4">
+          <div>
+            <textarea
+              value={agentQuery}
+              onChange={(e) => setAgentQuery(e.target.value)}
+              placeholder="向 AI 助手提问（例如：找出所有关于产品设计的片段，并建议如何剪辑成短视频）"
+              rows={3}
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+            />
           </div>
           
-          <form onSubmit={handleAgentQuery} className="space-y-4">
-            <div>
-              <textarea
-                value={agentQuery}
-                onChange={(e) => setAgentQuery(e.target.value)}
-                placeholder="向 AI 助手提问（例如：找出所有关于产品设计的片段，并建议如何剪辑成短视频）"
-                rows={3}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                value="search"
+                checked={agentType === "search"}
+                onChange={(e) => setAgentType(e.target.value)}
               />
-            </div>
-            
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  value="search"
-                  checked={agentType === "search"}
-                  onChange={(e) => setAgentType(e.target.value)}
-                />
-                <Search className="w-4 h-4" />
-                <span>搜索助手</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  value="clip_extractor"
-                  checked={agentType === "clip_extractor"}
-                  onChange={(e) => setAgentType(e.target.value)}
-                />
-                <Scissors className="w-4 h-4" />
-                <span>剪辑建议助手</span>
-              </label>
-            </div>
-            
-            <button
-              type="submit"
-              disabled={agentRunning}
-              className="px-6 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 flex items-center gap-2"
-            >
-              {agentRunning ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  AI 思考中...
-                </>
-              ) : (
-                <>
-                  <Bot className="w-4 h-4" />
-                  发送
-                </>
-              )}
-            </button>
-          </form>
+              <Search className="w-4 h-4" />
+              <span>搜索助手</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                value="clip_extractor"
+                checked={agentType === "clip_extractor"}
+                onChange={(e) => setAgentType(e.target.value)}
+              />
+              <Scissors className="w-4 h-4" />
+              <span>剪辑建议助手</span>
+            </label>
+          </div>
+          
+          <button
+            type="submit"
+            disabled={agentRunning}
+            className="px-6 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 flex items-center gap-2"
+          >
+            {agentRunning ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                AI 思考中...
+              </>
+            ) : (
+              <>
+                <Bot className="w-4 h-4" />
+                发送
+              </>
+            )}
+          </button>
+        </form>
 
-          {/* Agent 响应 */}
-          {agentResponse && (
-            <div className="mt-6 border rounded-lg p-4 bg-purple-50">
-              <h3 className="font-semibold text-purple-900 mb-2">AI 助手回复：</h3>
-              <div className="whitespace-pre-wrap text-gray-800">{agentResponse}</div>
-            </div>
-          )}
-        </div>
+        {/* Agent 响应 */}
+        {agentResponse && (
+          <div className="mt-6 border rounded-lg p-4 bg-purple-50">
+            <h3 className="font-semibold text-purple-900 mb-2">AI 助手回复：</h3>
+            <div className="whitespace-pre-wrap text-gray-800">{agentResponse}</div>
+          </div>
+        )}
+      </div>
       )}
     </div>
   );

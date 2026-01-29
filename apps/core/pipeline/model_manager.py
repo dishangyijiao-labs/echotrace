@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 from pathlib import Path
 from typing import Optional
 
@@ -11,6 +12,18 @@ from faster_whisper import WhisperModel
 # HuggingFace cache directory
 DEFAULT_CACHE_DIR = Path.home() / ".cache" / "huggingface" / "hub"
 
+# App bundle model directory (for packaged apps)
+APP_ROOT = Path(__file__).resolve().parent.parent
+BUNDLE_MODEL_DIR = APP_ROOT / "models"
+
+
+def get_bundled_model_path(model_size: str) -> Optional[Path]:
+    """Get path to bundled model if available"""
+    bundled_path = BUNDLE_MODEL_DIR / model_size
+    if bundled_path.exists() and any(bundled_path.iterdir()):
+        return bundled_path
+    return None
+
 
 def get_model_cache_path(model_size: str) -> Path:
     """Get the expected cache path for a model"""
@@ -19,8 +32,37 @@ def get_model_cache_path(model_size: str) -> Path:
     return DEFAULT_CACHE_DIR / model_name
 
 
+def copy_bundled_model_to_cache(model_size: str) -> bool:
+    """Copy bundled model to user cache directory if available"""
+    bundled_path = get_bundled_model_path(model_size)
+    if not bundled_path:
+        return False
+    
+    cache_path = get_model_cache_path(model_size)
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    try:
+        if cache_path.exists():
+            # Already exists, skip
+            return True
+        
+        print(f"Copying bundled {model_size} model to cache...")
+        shutil.copytree(bundled_path, cache_path)
+        print(f"✅ Model copied successfully")
+        return True
+    except Exception as e:
+        print(f"⚠️  Failed to copy bundled model: {e}")
+        return False
+
+
 def is_model_downloaded(model_size: str) -> bool:
-    """Check if a model is already downloaded"""
+    """Check if a model is already downloaded (in cache or bundled)"""
+    # First check if bundled model exists
+    if get_bundled_model_path(model_size):
+        # Try to copy to cache for faster-whisper to use
+        copy_bundled_model_to_cache(model_size)
+    
+    # Check cache directory
     cache_path = get_model_cache_path(model_size)
     return cache_path.exists() and any(cache_path.iterdir())
 

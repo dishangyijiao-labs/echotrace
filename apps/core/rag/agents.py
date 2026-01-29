@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import List, Dict, Any
 
 try:
-    from langchain_openai import ChatOpenAI
+from langchain_openai import ChatOpenAI
     LLM_AVAILABLE = True
 except ImportError:
     LLM_AVAILABLE = False
@@ -36,11 +36,11 @@ class VideoSearchAgent:
         
         # 初始化 LLM（如果可用）
         if LLM_AVAILABLE:
-            self.llm = ChatOpenAI(
-                model=model,
-                api_key=api_key or os.getenv("OPENAI_API_KEY"),
-                temperature=0,
-            )
+        self.llm = ChatOpenAI(
+            model=model,
+            api_key=api_key or os.getenv("OPENAI_API_KEY"),
+            temperature=0,
+        )
         else:
             self.llm = None
 
@@ -96,11 +96,11 @@ class ClipExtractorAgent:
 
     def __init__(self, model: str = "gpt-4o-mini", api_key: str | None = None):
         if LLM_AVAILABLE:
-            self.llm = ChatOpenAI(
-                model=model,
-                api_key=api_key or os.getenv("OPENAI_API_KEY"),
-                temperature=0.3,
-            )
+        self.llm = ChatOpenAI(
+            model=model,
+            api_key=api_key or os.getenv("OPENAI_API_KEY"),
+            temperature=0.3,
+        )
         else:
             self.llm = None
 
@@ -145,8 +145,8 @@ class ClipExtractorAgent:
 请以清晰的列表形式回答。"""
 
         try:
-            response = self.llm.invoke(prompt)
-            return response.content
+        response = self.llm.invoke(prompt)
+        return response.content
         except Exception as e:
             return f"生成建议失败：{str(e)}\n\n原始片段列表：\n{clips_text}"
 
