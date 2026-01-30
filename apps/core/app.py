@@ -22,11 +22,11 @@ import os
 SEMANTIC_SEARCH_ENABLED = os.getenv("ECHOTRACE_SEMANTIC_SEARCH", "false").lower() == "true"
 
 if SEMANTIC_SEARCH_ENABLED:
-try:
-    from rag.vector_store import get_vector_store, sync_all_transcripts_to_vector
-    from rag.retriever import get_retriever
-    from rag.agents import get_search_agent, ClipExtractorAgent
-    RAG_ENABLED = True
+    try:
+        from rag.vector_store import get_vector_store, sync_all_transcripts_to_vector
+        from rag.retriever import get_retriever
+        from rag.agents import get_search_agent, ClipExtractorAgent
+        RAG_ENABLED = True
         print("✅ 语义搜索已启用（需要下载嵌入模型）")
     except ImportError as e:
         RAG_ENABLED = False
