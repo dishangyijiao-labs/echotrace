@@ -8,8 +8,8 @@
   ],
   "scripts": {
     "dev": "concurrently \"npm run dev:core\" \"npm run dev:worker\" \"npm run dev:desktop\"",
-    "dev:core": "cd apps/core && .venv/bin/python3 app.py",
-    "dev:worker": "cd apps/core && .venv/bin/python3 worker.py",
+    "dev:core": "cd apps/core && bash run.sh app.py",
+    "dev:worker": "cd apps/core && bash run.sh worker.py",
     "dev:desktop": "cd apps/desktop && npm run tauri dev",
     "build": "cd apps/desktop && npm run tauri build",
     "setup:core": "cd apps/core && python3 -m venv .venv && .venv/bin/pip install --upgrade pip && .venv/bin/pip install -r requirements.txt --extra-index-url https://pypi.tuna.tsinghua.edu.cn/simple",
