@@ -9,9 +9,11 @@ from pathlib import Path
 
 from pipeline.media import extract_audio
 from pipeline.whisper import load_model
+from db.init_db import init_db
 
 APP_ROOT = Path(__file__).resolve().parent
 DEFAULT_DB_PATH = APP_ROOT / "data" / "app.db"
+SCHEMA_PATH = APP_ROOT / "db" / "schema.sql"
 STAGING_DIR = APP_ROOT / "data" / "staging"
 
 
@@ -209,6 +211,9 @@ def _reset_stale_jobs(conn: sqlite3.Connection) -> int:
 
 
 def run_worker(db_path: Path, poll_interval: float, once: bool) -> None:
+    # Initialize database
+    init_db(db_path, SCHEMA_PATH)
+    
     with _connect(db_path) as conn:
         # Reset any stale 'running' jobs from crashed workers
         reset_count = _reset_stale_jobs(conn)
