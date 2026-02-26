@@ -21,6 +21,7 @@ def _ensure_job_columns(conn: sqlite3.Connection) -> None:
         "progress": "REAL NOT NULL DEFAULT 0",
         "processed_segments": "INTEGER NOT NULL DEFAULT 0",
         "total_segments": "INTEGER NOT NULL DEFAULT 0",
+        "worker_id": "TEXT",
     }
     for name, definition in columns.items():
         if name not in existing:
