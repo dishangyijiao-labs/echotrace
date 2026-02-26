@@ -40,6 +40,8 @@ function TranscriptDetail() {
   const [activeSegmentId, setActiveSegmentId] = useState(null);
   const [followPlayback, setFollowPlayback] = useState(true);
   const segmentRefs = useRef({});
+  const [subtitleWriting, setSubtitleWriting] = useState(false);
+  const [subtitleStatus, setSubtitleStatus] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -238,6 +240,21 @@ function TranscriptDetail() {
     playSegment(target.start);
   };
 
+  const writeSubtitle = async () => {
+    try {
+      setSubtitleWriting(true);
+      setSubtitleStatus(null);
+      const response = await api.post(`/transcripts/${id}/write-subtitle`);
+      const path = response.data?.srt_path || "";
+      setSubtitleStatus({ ok: true, message: `字幕已写入: ${path}` });
+    } catch (error) {
+      setSubtitleStatus({ ok: false, message: "字幕写入失败" });
+      console.error("Failed to write subtitle:", error);
+    } finally {
+      setSubtitleWriting(false);
+    }
+  };
+
   const runSummary = async () => {
     if (!transcript?.content) return;
     try {
@@ -392,7 +409,28 @@ function TranscriptDetail() {
               />
               跟随播放
             </label>
+            {mediaSrc ? (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={writeSubtitle}
+                disabled={subtitleWriting}
+              >
+                {subtitleWriting ? "写入中..." : "写入字幕 (.srt)"}
+              </button>
+            ) : null}
           </div>
+          {subtitleStatus && (
+            <div
+              className={`mt-2 text-sm px-3 py-2 rounded ${
+                subtitleStatus.ok
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {subtitleStatus.message}
+            </div>
+          )}
           <div className="mt-4 space-y-3 max-h-[480px] overflow-y-auto pr-2 scrollbar-thin">
             {transcript.segments?.length ? (
               transcript.segments.map((segment) => (

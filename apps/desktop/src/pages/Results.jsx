@@ -15,6 +15,17 @@ function downloadBlob(filename, content) {
   URL.revokeObjectURL(url);
 }
 
+function downloadBlobRaw(filename, blob) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 function Results() {
   const [results, setResults] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
@@ -24,6 +35,8 @@ function Results() {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchOffset, setSearchOffset] = useState(0);
   const [searchParams, setSearchParams] = useSearchParams();
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [batchExporting, setBatchExporting] = useState(false);
   const searchLimit = 20;
 
   const loadResults = useCallback(async () => {
@@ -100,6 +113,40 @@ function Results() {
       downloadBlob(`${filename}.${format}`, content);
     } catch (error) {
       console.error("Failed to export:", error);
+    }
+  };
+
+  const handleBatchExport = async (format) => {
+    if (selectedIds.size === 0) return;
+    try {
+      setBatchExporting(true);
+      const response = await api.post(
+        "/export/batch",
+        { transcript_ids: [...selectedIds], format },
+        { responseType: "blob" }
+      );
+      downloadBlobRaw(`echotrace_export.zip`, response.data);
+    } catch (error) {
+      console.error("Failed to batch export:", error);
+    } finally {
+      setBatchExporting(false);
+    }
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map((r) => r.id)));
     }
   };
 
@@ -269,10 +316,40 @@ function Results() {
         </div>
       ) : (
         <div className="card">
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-3 px-4 pt-4">
+              <span className="text-sm text-gray-600">已选 {selectedIds.size} 项</span>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={batchExporting}
+                onClick={() => handleBatchExport("txt")}
+              >
+                <Download className="w-4 h-4" />
+                批量导出 TXT
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={batchExporting}
+                onClick={() => handleBatchExport("srt")}
+              >
+                <Download className="w-4 h-4" />
+                批量导出 SRT
+              </button>
+            </div>
+          )}
           <div className="table-wrapper">
             <table className="table">
               <thead>
                 <tr>
+                  <th>
+                    <input
+                      type="checkbox"
+                      checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                      onChange={toggleSelectAll}
+                    />
+                  </th>
                   <th>文件名</th>
                   <th>摘要</th>
                   <th>语言</th>
@@ -282,6 +359,13 @@ function Results() {
               <tbody>
                 {filtered.map((item) => (
                   <tr key={item.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(item.id)}
+                        onChange={() => toggleSelect(item.id)}
+                      />
+                    </td>
                     <td>
                       <Link
                         className="text-blue-600 hover:text-blue-700"
