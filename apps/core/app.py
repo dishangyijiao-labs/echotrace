@@ -44,7 +44,9 @@ else:
     _app_log.info("Running in full-text search mode (set ECHOTRACE_SEMANTIC_SEARCH=true to enable semantic search)")
 
 APP_ROOT = Path(__file__).resolve().parent
-DEFAULT_DB_PATH = APP_ROOT / "data" / "app.db"
+# Allow the Tauri host to redirect data to a writable directory (e.g. ~/Library/Application Support/…)
+_data_dir = os.environ.get("ECHOTRACE_DATA_DIR")
+DEFAULT_DB_PATH = Path(_data_dir) / "app.db" if _data_dir else APP_ROOT / "data" / "app.db"
 SCHEMA_PATH = APP_ROOT / "db" / "schema.sql"
 
 _ALLOWED_MIMES = {

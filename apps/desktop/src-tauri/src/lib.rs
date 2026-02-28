@@ -2,7 +2,7 @@ use std::{
     env,
     fs::{self, OpenOptions},
     net::TcpStream,
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     sync::Mutex,
     time::Duration,
@@ -113,52 +113,119 @@ fn python_command() -> PathBuf {
     }))
 }
 
+/// Minimum acceptable Python version (major, minor).
+const MIN_PYTHON: (u64, u64) = (3, 11);
+
+fn python_version(exe: &Path) -> Option<(u64, u64)> {
+    let out = Command::new(exe).arg("--version").output().ok()?;
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    let combined = format!("{}{}", stdout, stderr);
+    // "Python 3.12.4"
+    let ver = combined.trim().strip_prefix("Python ")?;
+    let mut parts = ver.split('.');
+    let major: u64 = parts.next()?.parse().ok()?;
+    let minor: u64 = parts.next()?.parse().ok()?;
+    Some((major, minor))
+}
+
+fn find_system_python() -> Option<PathBuf> {
+    // Explicit Homebrew paths first (not always on PATH inside .app sandbox)
+    let candidates = [
+        "/opt/homebrew/opt/python@3.12/bin/python3.12",
+        "/opt/homebrew/opt/python@3.11/bin/python3.11",
+        "/opt/homebrew/bin/python3.12",
+        "/opt/homebrew/bin/python3.11",
+        "/opt/homebrew/bin/python3",
+        "/usr/local/bin/python3.12",
+        "/usr/local/bin/python3.11",
+        "/usr/local/bin/python3",
+        "python3.12",
+        "python3.11",
+        "python3",
+    ];
+    candidates.iter().find_map(|&p| {
+        let path = PathBuf::from(p);
+        if let Some(ver) = python_version(&path) {
+            if ver >= MIN_PYTHON {
+                return Some(path);
+            }
+        }
+        None
+    })
+}
+
 /// Create (or reuse) a venv in the app data dir and install requirements.
+/// Recreates the venv if it was built with a too-old Python.
+/// Uses a marker file (.installed) to skip pip on subsequent launches.
 /// Returns the path to the python executable inside the venv.
 fn setup_venv(app: &AppHandle) -> Result<PathBuf, String> {
     let venv = venv_dir(app);
     let python_bin = venv.join("bin").join("python3");
+    let marker = venv.join(".installed");
 
+    // Check existing venv Python version
     if python_bin.exists() {
-        return Ok(python_bin);
+        if let Some(ver) = python_version(&python_bin) {
+            if ver >= MIN_PYTHON {
+                if marker.exists() {
+                    eprintln!("✅ Venv ready (Python {}.{})", ver.0, ver.1);
+                    return Ok(python_bin);
+                }
+                eprintln!("✅ Venv Python ok ({}.{}), packages not yet installed", ver.0, ver.1);
+                // Fall through to pip install
+            } else {
+                eprintln!("⚠️  Venv Python {}.{} < {}.{}, recreating", ver.0, ver.1, MIN_PYTHON.0, MIN_PYTHON.1);
+                let _ = fs::remove_dir_all(&venv);
+            }
+        } else {
+            eprintln!("⚠️  Could not determine venv Python version, recreating");
+            let _ = fs::remove_dir_all(&venv);
+        }
     }
 
-    eprintln!("🐍 Creating Python venv at {:?}", venv);
-
-    // Find a suitable system Python (3.11+)
-    let system_python = ["python3.12", "python3.11", "python3", "python"]
-        .iter()
-        .find_map(|&p| {
-            let out = Command::new(p).arg("--version").output().ok()?;
-            if out.status.success() { Some(PathBuf::from(p)) } else { None }
-        })
-        .ok_or_else(|| "No Python 3 found on PATH".to_string())?;
-
-    // Create venv
-    let status = Command::new(&system_python)
-        .args(["-m", "venv", venv.to_str().unwrap_or(".")])
-        .status()
-        .map_err(|e| format!("Failed to create venv: {e}"))?;
-    if !status.success() {
-        return Err("python -m venv failed".to_string());
+    // Create venv if it doesn't exist (or was just deleted above)
+    if !python_bin.exists() {
+        let system_python = find_system_python()
+            .ok_or_else(|| "No Python 3.11+ found. Install Python 3.12 via Homebrew: brew install python@3.12".to_string())?;
+        eprintln!("🐍 Creating venv with {:?} at {:?}", system_python, venv);
+        let status = Command::new(&system_python)
+            .args(["-m", "venv", venv.to_str().unwrap_or(".")])
+            .status()
+            .map_err(|e| format!("venv creation failed: {e}"))?;
+        if !status.success() {
+            return Err("python -m venv failed".to_string());
+        }
     }
 
-    // Install requirements
+    // Install requirements (only when marker is absent)
     let req = core_dir().join("requirements.txt");
     if req.exists() {
         eprintln!("📦 Installing requirements from {:?}", req);
         let pip = venv.join("bin").join("pip");
-        let status = Command::new(&pip)
-            .args(["install", "-r", req.to_str().unwrap_or("requirements.txt"), "--quiet"])
-            .status()
+        let out = Command::new(&pip)
+            .args(["install", "-r", req.to_str().unwrap_or("requirements.txt")])
+            .output()
             .map_err(|e| format!("pip install failed: {e}"))?;
-        if !status.success() {
-            eprintln!("⚠️  pip install returned non-zero; continuing anyway");
+        if !out.status.success() {
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            eprintln!("⚠️  pip stderr: {}", stderr);
+            return Err(format!("pip install failed: {}", stderr));
         }
+        // Write marker so we skip pip on next launch
+        let _ = fs::write(&marker, "ok");
+        eprintln!("✅ Requirements installed");
+    } else {
+        eprintln!("⚠️  requirements.txt not found at {:?}", req);
+        return Err(format!("requirements.txt missing at {:?}", req));
     }
 
-    eprintln!("✅ Venv ready at {:?}", python_bin);
+    eprintln!("✅ Venv ready: {:?}", python_bin);
     Ok(python_bin)
+}
+
+fn app_data_dir(app: &AppHandle) -> PathBuf {
+    app.path().app_data_dir().unwrap_or_else(|_| PathBuf::from("."))
 }
 
 fn core_dir() -> PathBuf {
@@ -178,7 +245,8 @@ fn core_dir() -> PathBuf {
             let candidates = vec![
                 // Packaged .app bundle: EchoTrace.app/Contents/MacOS/echotrace
                 // Core should be in: EchoTrace.app/Contents/Resources/core
-                exe_dir.join("../../Resources/core"),
+                // exe_dir = .../Contents/MacOS  →  ../Resources/core = .../Contents/Resources/core
+                exe_dir.join("../Resources/core"),
                 
                 // Development mode: running from src-tauri/target/debug or release
                 // Executable: apps/desktop/src-tauri/target/debug/echotrace
@@ -285,12 +353,14 @@ fn spawn_process(app: &AppHandle, script: &str, log_name: &str) -> Result<Child,
 
     let python = python_command_with_app(app);
     let core = core_dir();
-    eprintln!("🚀 spawn_process: python={:?} script={} cwd={:?}", python, script, core);
+    let data_dir = app_data_dir(app);
+    eprintln!("🚀 spawn_process: python={:?} script={} cwd={:?} data={:?}", python, script, core, data_dir);
 
     Command::new(python)
         .arg(script)
         .current_dir(&core)
         .env("MCP_PROVIDERS_PATH", providers_file)
+        .env("ECHOTRACE_DATA_DIR", &data_dir)
         .stdout(Stdio::from(stdout))
         .stderr(Stdio::from(stderr))
         .spawn()

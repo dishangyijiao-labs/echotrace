@@ -17,9 +17,11 @@ from pipeline.whisper import load_model
 from db.init_db import init_db
 
 APP_ROOT = Path(__file__).resolve().parent
-DEFAULT_DB_PATH = APP_ROOT / "data" / "app.db"
+import os as _os
+_data_dir = _os.environ.get("ECHOTRACE_DATA_DIR")
+DEFAULT_DB_PATH = Path(_data_dir) / "app.db" if _data_dir else APP_ROOT / "data" / "app.db"
 SCHEMA_PATH = APP_ROOT / "db" / "schema.sql"
-STAGING_DIR = APP_ROOT / "data" / "staging"
+STAGING_DIR = Path(_data_dir) / "staging" if _data_dir else APP_ROOT / "data" / "staging"
 
 LOG_FORMAT = "%(asctime)s %(levelname)-8s [%(name)s] %(message)s"
 LOG_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
