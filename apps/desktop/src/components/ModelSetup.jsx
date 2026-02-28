@@ -1,64 +1,76 @@
-import { useState, useEffect } from 'react';
-import { CheckCircle, Download, AlertCircle, Loader } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { CheckCircle, Download, AlertCircle, Loader, RefreshCw } from 'lucide-react';
+
+const API_BASE = 'http://127.0.0.1:8787';
 
 const ModelSetup = ({ onComplete }) => {
   const [models, setModels] = useState([]);
   const [downloading, setDownloading] = useState(false);
   const [currentDownload, setCurrentDownload] = useState(null);
   const [error, setError] = useState(null);
+  const [apiReachable, setApiReachable] = useState(null); // null=unknown, true, false
+  const retryTimerRef = useRef(null);
 
-  const recommendedModel = 'base'; // Default model for first-time users
-
-  useEffect(() => {
-    checkModels();
-  }, []);
+  const recommendedModel = 'base';
 
   const checkModels = async () => {
     try {
-      const response = await fetch('http://127.0.0.1:8787/models');
+      const response = await fetch(`${API_BASE}/models`);
       const data = await response.json();
-      setModels(data.models);
+      setModels(data.models ?? []);
+      setApiReachable(true);
+      setError(null);
 
-      // Check if recommended model is downloaded
-      const baseModel = data.models.find(m => m.name === recommendedModel);
+      const baseModel = (data.models ?? []).find(m => m.name === recommendedModel);
       if (baseModel?.downloaded) {
-        // Auto-complete if base model exists
         setTimeout(() => onComplete?.(), 1500);
       }
-    } catch (err) {
-      setError('无法连接到 Core API - 服务可能还在启动中，请稍后刷新页面');
+    } catch {
+      setApiReachable(false);
+      setError('无法连接到 Core 服务，正在重试…');
+      // Auto-retry every 3 s while unreachable
+      retryTimerRef.current = setTimeout(checkModels, 3000);
     }
   };
 
+  useEffect(() => {
+    checkModels();
+    return () => clearTimeout(retryTimerRef.current);
+  }, []);
+
   const downloadModel = async (modelName) => {
+    if (!apiReachable) return;
     setDownloading(true);
     setCurrentDownload(modelName);
     setError(null);
 
     try {
-      const response = await fetch(
-        `http://127.0.0.1:8787/models/${modelName}/download`,
-        { method: 'POST' }
-      );
-
-      if (!response.ok) {
-        throw new Error('下载失败');
-      }
-
-      const data = await response.json();
-      
-      // Refresh models list
-      await checkModels();
-      
-      setDownloading(false);
-      setCurrentDownload(null);
-
-      // Auto-complete after successful download
-      if (modelName === recommendedModel) {
-        setTimeout(() => onComplete?.(), 1000);
-      }
+      const response = await fetch(`${API_BASE}/models/${modelName}/download`, { method: 'POST' });
+      if (!response.ok) throw new Error('服务器返回错误');
+      // Download is async — poll until done
+      const poll = async () => {
+        try {
+          const r = await fetch(`${API_BASE}/models/${modelName}/download/status`);
+          const d = await r.json();
+          if (d.status === 'done') {
+            setDownloading(false);
+            setCurrentDownload(null);
+            await checkModels();
+            if (modelName === recommendedModel) setTimeout(() => onComplete?.(), 1000);
+          } else if (d.status === 'failed') {
+            throw new Error(d.error || '下载失败');
+          } else {
+            setTimeout(poll, 2000);
+          }
+        } catch (err) {
+          setError(`下载失败: ${err.message}`);
+          setDownloading(false);
+          setCurrentDownload(null);
+        }
+      };
+      setTimeout(poll, 2000);
     } catch (err) {
-      setError(`下载模型失败: ${err.message}`);
+      setError(`无法连接到 Core 服务，请确认服务已启动`);
       setDownloading(false);
       setCurrentDownload(null);
     }
@@ -104,7 +116,13 @@ const ModelSetup = ({ onComplete }) => {
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
-            <div className="text-red-800 text-sm">{error}</div>
+            <div className="flex-1 text-red-800 text-sm">{error}</div>
+            {!apiReachable && (
+              <button onClick={() => { clearTimeout(retryTimerRef.current); checkModels(); }}
+                className="flex items-center gap-1 text-red-600 hover:text-red-800 text-xs font-medium shrink-0">
+                <RefreshCw className="h-3.5 w-3.5" /> 重试
+              </button>
+            )}
           </div>
         )}
 
@@ -118,8 +136,8 @@ const ModelSetup = ({ onComplete }) => {
             </p>
             <button
               onClick={() => downloadModel(recommendedModel)}
-              disabled={downloading}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+              disabled={downloading || !apiReachable}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
             >
               {downloading ? (
                 <>
@@ -183,8 +201,8 @@ const ModelSetup = ({ onComplete }) => {
                   {!model.downloaded && (
                     <button
                       onClick={() => downloadModel(model.name)}
-                      disabled={downloading}
-                      className="ml-4 text-blue-600 hover:text-blue-800 disabled:text-gray-400 text-sm font-medium"
+                      disabled={downloading || !apiReachable}
+                      className="ml-4 text-blue-600 hover:text-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed text-sm font-medium"
                     >
                       下载
                     </button>
