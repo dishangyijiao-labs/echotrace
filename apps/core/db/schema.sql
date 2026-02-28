@@ -36,9 +36,12 @@ CREATE TABLE IF NOT EXISTS job (
   processed_segments INTEGER NOT NULL DEFAULT 0,
   total_segments INTEGER NOT NULL DEFAULT 0,
   error TEXT,
+  worker_id TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_job_status_updated ON job (status, updated_at);
 
 CREATE VIRTUAL TABLE IF NOT EXISTS segment_fts USING fts5(
   text,
