@@ -19,12 +19,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: macos-latest   # Apple Silicon (arm64)
+          - platform: macos-latest   # Apple Silicon (arm64); Intel via Rosetta 2
             args: --target aarch64-apple-darwin
             rust-target: aarch64-apple-darwin
-          - platform: macos-13       # Intel (x86_64)
-            args: --target x86_64-apple-darwin
-            rust-target: x86_64-apple-darwin
           - platform: ubuntu-22.04
             args: ""
             rust-target: ""
