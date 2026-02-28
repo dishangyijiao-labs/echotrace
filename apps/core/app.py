@@ -1,21 +1,25 @@
 from __future__ import annotations
 
 import datetime as dt
+import logging
 import mimetypes
 import sqlite3
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 from db.init_db import init_db
 from download_manager import download_manager, DownloadStatus
+from errors import E, ErrorResponse, raise_api_error, sanitize_error, build_error
 from mcp_gateway.client import call_tool as mcp_call_tool
 from mcp_gateway.registry import load_providers
 from pipeline.model_manager import get_model_info, is_model_downloaded, download_model
+
+_app_log = logging.getLogger("echotrace.app")
 
 # RAG imports - 语义搜索功能（可选）
 # 设置 ECHOTRACE_SEMANTIC_SEARCH=true 启用语义搜索（需要下载模型）
@@ -29,18 +33,25 @@ if SEMANTIC_SEARCH_ENABLED:
         from rag.retriever import get_retriever
         from rag.agents import get_search_agent, ClipExtractorAgent
         RAG_ENABLED = True
-        print("✅ 语义搜索已启用（需要下载嵌入模型）")
+        _app_log.info("Semantic search enabled")
     except ImportError as e:
         RAG_ENABLED = False
-        print(f"⚠️ 语义搜索模块加载失败: {e}")
+        _app_log.warning("Semantic search module failed to load: %s", e)
 else:
     RAG_ENABLED = False
-    print("ℹ️ 使用全文搜索模式（无需下载模型，立即可用）")
-    print("   如需启用语义搜索，设置环境变量: export ECHOTRACE_SEMANTIC_SEARCH=true")
+    _app_log.info("Running in full-text search mode (set ECHOTRACE_SEMANTIC_SEARCH=true to enable semantic search)")
 
 APP_ROOT = Path(__file__).resolve().parent
 DEFAULT_DB_PATH = APP_ROOT / "data" / "app.db"
 SCHEMA_PATH = APP_ROOT / "db" / "schema.sql"
+
+_ALLOWED_MIMES = {
+    "video/mp4", "video/quicktime", "video/x-msvideo", "video/x-matroska",
+    "video/webm", "video/mpeg",
+    "audio/mpeg", "audio/wav", "audio/x-wav", "audio/ogg", "audio/flac",
+    "audio/aac", "audio/mp4", "audio/x-m4a",
+}
+_MAX_FILE_BYTES = 10 * 1024 * 1024 * 1024  # 10 GB
 
 app = FastAPI(title="EchoTrace Core")
 app.add_middleware(
@@ -49,6 +60,52 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    if isinstance(exc.detail, dict) and "code" in exc.detail:
+        return JSONResponse(status_code=exc.status_code, content=exc.detail)
+    err = build_error(
+        code=E.INTERNAL_ERROR,
+        message=str(exc.detail),
+    )
+    return JSONResponse(status_code=exc.status_code, content=err.model_dump())
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    _app_log.exception("Unhandled error on %s %s", request.method, request.url.path)
+    err = build_error(
+        code=E.INTERNAL_ERROR,
+        message="An unexpected error occurred.",
+        detail=sanitize_error(str(exc)),
+    )
+    return JSONResponse(status_code=500, content=err.model_dump())
+
+
+def _require_rag() -> None:
+    """Raise 501 if RAG module is not available."""
+    if not RAG_ENABLED:
+        raise_api_error(501, E.RAG_NOT_ENABLED, "Semantic search is not enabled. Set ECHOTRACE_SEMANTIC_SEARCH=true.")
+
+
+def validate_import_path(path_str: str) -> Path:
+    """Validate a user-supplied media path."""
+    path = Path(path_str).resolve()
+    # Guard against path traversal
+    try:
+        path.relative_to(Path("/"))
+    except ValueError:
+        raise_api_error(400, E.PATH_TRAVERSAL, f"Invalid path: {path_str}")
+    if not path.exists():
+        raise_api_error(400, E.FILE_NOT_FOUND, f"File not found: {path.name}")
+    if path.stat().st_size > _MAX_FILE_BYTES:
+        raise_api_error(413, E.FILE_TOO_LARGE, f"File exceeds 10 GB limit: {path.name}")
+    mime, _ = mimetypes.guess_type(path.name)
+    if mime not in _ALLOWED_MIMES:
+        raise_api_error(415, E.UNSUPPORTED_MIME, f"Unsupported file type: {mime or 'unknown'}")
+    return path
 
 
 def _now() -> str:
@@ -130,14 +187,12 @@ def health() -> dict:
 @app.post("/media/import")
 def import_media(payload: MediaImportRequest) -> dict:
     if not payload.paths:
-        raise HTTPException(status_code=400, detail="paths cannot be empty")
+        raise_api_error(400, E.PATHS_EMPTY, "paths cannot be empty")
 
     created = []
     with _connect(DEFAULT_DB_PATH) as conn:
         for path_str in payload.paths:
-            path = Path(path_str)
-            if not path.exists():
-                continue
+            path = validate_import_path(path_str)
             file_type, _ = mimetypes.guess_type(path.name)
             now = _now()
             cursor = conn.execute(
@@ -431,8 +486,7 @@ async def cancel_model_download(model_name: str) -> dict:
 @app.post("/rag/index")
 def index_transcript_to_vector(transcript_id: int, embedding_provider: str = "local") -> dict:
     """为指定转录文本建立向量索引"""
-    if not RAG_ENABLED:
-        raise HTTPException(status_code=501, detail="RAG module not installed")
+    _require_rag()
     
     with _connect(DEFAULT_DB_PATH) as conn:
         # 检查转录是否存在
@@ -457,8 +511,7 @@ def index_transcript_to_vector(transcript_id: int, embedding_provider: str = "lo
 @app.post("/rag/sync-all")
 def sync_all_to_vector(embedding_provider: str = "local") -> dict:
     """同步所有转录文本到向量库"""
-    if not RAG_ENABLED:
-        raise HTTPException(status_code=501, detail="RAG module not installed")
+    _require_rag()
     
     result = sync_all_transcripts_to_vector(DEFAULT_DB_PATH, embedding_provider)
     return {"ok": True, **result}
@@ -467,8 +520,7 @@ def sync_all_to_vector(embedding_provider: str = "local") -> dict:
 @app.post("/search/semantic")
 def semantic_search(payload: SemanticSearchRequest) -> dict:
     """语义搜索（支持混合检索）"""
-    if not RAG_ENABLED:
-        raise HTTPException(status_code=501, detail="RAG module not installed")
+    _require_rag()
     
     retriever = get_retriever(DEFAULT_DB_PATH)
     results = retriever.search(payload.query, mode=payload.mode, limit=payload.limit)
@@ -479,8 +531,7 @@ def semantic_search(payload: SemanticSearchRequest) -> dict:
 @app.post("/agent/query")
 def agent_query(payload: AgentQueryRequest) -> dict:
     """Agent 智能查询"""
-    if not RAG_ENABLED:
-        raise HTTPException(status_code=501, detail="RAG module not installed")
+    _require_rag()
     
     if payload.agent_type == "search":
         agent = get_search_agent()
