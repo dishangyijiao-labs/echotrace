@@ -30,6 +30,16 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "resources": {
+      "../../core/app.py": "core/app.py",
+      "../../core/worker.py": "core/worker.py",
+      "../../core/download_manager.py": "core/download_manager.py",
+      "../../core/errors.py": "core/errors.py",
+      "../../core/requirements.txt": "core/requirements.txt",
+      "../../core/db": "core/db",
+      "../../core/pipeline": "core/pipeline",
+      "../../core/mcp_gateway": "core/mcp_gateway"
+    }
   }
 }

@@ -76,23 +76,89 @@ struct ProcessStatus {
     worker_running: bool,
 }
 
-fn python_command() -> PathBuf {
-    // Use virtual environment Python
-    let core = core_dir();
-    let venv_python = core.join(".venv").join("bin").join("python3");
-    
-    // Fallback to system Python if venv doesn't exist
-    if venv_python.exists() {
-        venv_python
-    } else {
-        PathBuf::from(env::var("ECHOTRACE_PYTHON").unwrap_or_else(|_| {
-            if cfg!(windows) {
-                "python".to_string()
-            } else {
-                "python3.12".to_string()
-            }
-        }))
+fn venv_dir(app: &AppHandle) -> PathBuf {
+    app.path()
+        .app_data_dir()
+        .unwrap_or_else(|_| PathBuf::from("."))
+        .join("core-venv")
+}
+
+fn python_command_with_app(app: &AppHandle) -> PathBuf {
+    // 1. Prefer the managed venv in app data dir (portable, created at first launch)
+    let managed = venv_dir(app).join("bin").join("python3");
+    if managed.exists() {
+        return managed;
     }
+
+    // 2. Fallback: venv co-located with core source (dev mode)
+    let dev_venv = core_dir().join(".venv").join("bin").join("python3");
+    if dev_venv.exists() {
+        return dev_venv;
+    }
+
+    // 3. System Python
+    PathBuf::from(env::var("ECHOTRACE_PYTHON").unwrap_or_else(|_| {
+        if cfg!(windows) { "python".to_string() } else { "python3".to_string() }
+    }))
+}
+
+fn python_command() -> PathBuf {
+    // Used only before AppHandle is available; checks dev venv then system Python
+    let dev_venv = core_dir().join(".venv").join("bin").join("python3");
+    if dev_venv.exists() {
+        return dev_venv;
+    }
+    PathBuf::from(env::var("ECHOTRACE_PYTHON").unwrap_or_else(|_| {
+        if cfg!(windows) { "python".to_string() } else { "python3".to_string() }
+    }))
+}
+
+/// Create (or reuse) a venv in the app data dir and install requirements.
+/// Returns the path to the python executable inside the venv.
+fn setup_venv(app: &AppHandle) -> Result<PathBuf, String> {
+    let venv = venv_dir(app);
+    let python_bin = venv.join("bin").join("python3");
+
+    if python_bin.exists() {
+        return Ok(python_bin);
+    }
+
+    eprintln!("🐍 Creating Python venv at {:?}", venv);
+
+    // Find a suitable system Python (3.11+)
+    let system_python = ["python3.12", "python3.11", "python3", "python"]
+        .iter()
+        .find_map(|&p| {
+            let out = Command::new(p).arg("--version").output().ok()?;
+            if out.status.success() { Some(PathBuf::from(p)) } else { None }
+        })
+        .ok_or_else(|| "No Python 3 found on PATH".to_string())?;
+
+    // Create venv
+    let status = Command::new(&system_python)
+        .args(["-m", "venv", venv.to_str().unwrap_or(".")])
+        .status()
+        .map_err(|e| format!("Failed to create venv: {e}"))?;
+    if !status.success() {
+        return Err("python -m venv failed".to_string());
+    }
+
+    // Install requirements
+    let req = core_dir().join("requirements.txt");
+    if req.exists() {
+        eprintln!("📦 Installing requirements from {:?}", req);
+        let pip = venv.join("bin").join("pip");
+        let status = Command::new(&pip)
+            .args(["install", "-r", req.to_str().unwrap_or("requirements.txt"), "--quiet"])
+            .status()
+            .map_err(|e| format!("pip install failed: {e}"))?;
+        if !status.success() {
+            eprintln!("⚠️  pip install returned non-zero; continuing anyway");
+        }
+    }
+
+    eprintln!("✅ Venv ready at {:?}", python_bin);
+    Ok(python_bin)
 }
 
 fn core_dir() -> PathBuf {
@@ -217,14 +283,18 @@ fn spawn_process(app: &AppHandle, script: &str, log_name: &str) -> Result<Child,
         .open(&log_file)
         .map_err(|err| err.to_string())?;
 
-    Command::new(python_command())
+    let python = python_command_with_app(app);
+    let core = core_dir();
+    eprintln!("🚀 spawn_process: python={:?} script={} cwd={:?}", python, script, core);
+
+    Command::new(python)
         .arg(script)
-        .current_dir(core_dir())
+        .current_dir(&core)
         .env("MCP_PROVIDERS_PATH", providers_file)
         .stdout(Stdio::from(stdout))
         .stderr(Stdio::from(stderr))
         .spawn()
-        .map_err(|err| err.to_string())
+        .map_err(|err| format!("spawn failed (cwd={:?}): {}", core, err))
 }
 
 fn child_running(child: &mut Child) -> bool {
@@ -433,7 +503,15 @@ pub fn run() {
             let app_handle_clone = app_handle.clone();
             std::thread::spawn(move || {
                 let state = app_handle_clone.state::<ProcessState>();
-                
+
+                // Ensure Python venv is ready before spawning processes
+                eprintln!("🔧 core_dir = {:?}", core_dir());
+                eprintln!("🔧 python   = {:?}", python_command_with_app(&app_handle_clone));
+                match setup_venv(&app_handle_clone) {
+                    Ok(py) => eprintln!("✅ Venv ready: {:?}", py),
+                    Err(e) => eprintln!("⚠️  Venv setup failed: {} — will try system Python", e),
+                }
+
                 // Start Core API
                 match start_process(&app_handle_clone, &state.core, "app.py", "core.log") {
                     Ok(started) => {
