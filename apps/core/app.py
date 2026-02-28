@@ -8,9 +8,11 @@ from typing import List, Optional
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from db.init_db import init_db
+from download_manager import download_manager, DownloadStatus
 from mcp_gateway.client import call_tool as mcp_call_tool
 from mcp_gateway.registry import load_providers
 from pipeline.model_manager import get_model_info, is_model_downloaded, download_model
@@ -94,6 +96,7 @@ class AgentQueryRequest(BaseModel):
 @app.on_event("startup")
 def _startup() -> None:
     init_db(DEFAULT_DB_PATH, SCHEMA_PATH)
+    download_manager.recover_incomplete()
 
 
 @app.get("/")
@@ -375,33 +378,52 @@ def get_model_status(model_name: str) -> dict:
 
 
 @app.post("/models/{model_name}/download")
-def download_model_endpoint(model_name: str, device: str = "cpu") -> dict:
-    """
-    Download a Whisper model
-    
-    This is a blocking endpoint - it will wait until download completes.
-    For production, consider implementing async/background download with progress tracking.
-    """
+async def start_model_download(model_name: str, device: str = "cpu") -> dict:
+    """Enqueue an async background model download. Poll /models/{name}/download/status or
+    stream progress from /models/{name}/download/progress (SSE)."""
+    valid_models = {"tiny", "base", "small", "medium", "large-v2", "large-v3"}
+    if model_name not in valid_models:
+        raise HTTPException(status_code=404, detail=f"Unknown model: {model_name}")
+
     if is_model_downloaded(model_name):
-        return {
-            "ok": True,
-            "message": f"Model '{model_name}' is already downloaded",
-            "downloaded": True
-        }
-    
-    success = download_model(model_name, device)
-    
-    if success:
-        return {
-            "ok": True,
-            "message": f"Model '{model_name}' downloaded successfully",
-            "downloaded": True
-        }
-    else:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to download model '{model_name}'"
-        )
+        return {"ok": True, "status": DownloadStatus.DONE, "message": f"Model '{model_name}' is already downloaded"}
+
+    if download_manager.is_running(model_name):
+        task = download_manager.get_task(model_name)
+        return {"ok": True, "status": task.status, "message": "Download already in progress"}
+
+    await download_manager.start_download(model_name, device, download_model)
+    return {"ok": True, "status": DownloadStatus.QUEUED, "message": f"Download of '{model_name}' started"}
+
+
+@app.get("/models/{model_name}/download/status")
+def model_download_status(model_name: str) -> dict:
+    """Get the current download status for a model."""
+    if is_model_downloaded(model_name):
+        return {"ok": True, "model": model_name, "status": DownloadStatus.DONE, "progress": 1.0}
+    task = download_manager.get_task(model_name)
+    if not task:
+        return {"ok": True, "model": model_name, "status": "not_started", "progress": 0.0}
+    return {"ok": True, "model": model_name, "status": task.status, "progress": task.progress, "message": task.message, "error": task.error}
+
+
+@app.get("/models/{model_name}/download/progress")
+async def model_download_progress(model_name: str):
+    """SSE stream of download progress events for a model."""
+    return StreamingResponse(
+        download_manager.event_stream(model_name),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.delete("/models/{model_name}/download")
+async def cancel_model_download(model_name: str) -> dict:
+    """Cancel an in-progress model download."""
+    cancelled = await download_manager.cancel(model_name)
+    if not cancelled:
+        raise HTTPException(status_code=404, detail="No active download for this model")
+    return {"ok": True, "message": f"Download of '{model_name}' cancelled"}
 
 
 # ==================== RAG & Agent Endpoints ====================
