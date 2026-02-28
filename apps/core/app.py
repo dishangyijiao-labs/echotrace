@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import datetime as dt
+import io
 import logging
 import mimetypes
 import sqlite3
+import zipfile
 from pathlib import Path
 from typing import List, Optional
 
@@ -148,6 +150,11 @@ class SemanticSearchRequest(BaseModel):
 class AgentQueryRequest(BaseModel):
     query: str
     agent_type: str = "search"  # "search" | "clip_extractor"
+
+
+class BatchExportRequest(BaseModel):
+    transcript_ids: List[int]
+    format: str = "txt"  # "txt" | "srt" | "md"
 
 
 @app.on_event("startup")
@@ -309,30 +316,77 @@ def search(
     q: str = Query(min_length=1),
     limit: int = Query(ge=1, le=200, default=50),
     offset: int = Query(ge=0, default=0),
+    date_from: Optional[str] = Query(default=None, description="ISO date filter start (YYYY-MM-DD)"),
+    date_to: Optional[str] = Query(default=None, description="ISO date filter end (YYYY-MM-DD)"),
+    duration_min: Optional[float] = Query(default=None, ge=0, description="Min duration in seconds"),
+    duration_max: Optional[float] = Query(default=None, ge=0, description="Max duration in seconds"),
+    language: Optional[str] = Query(default=None, description="Filter by detected language code"),
+    file_type: Optional[str] = Query(default=None, description="Filter by MIME type prefix e.g. video"),
+    sort_by: str = Query(default="relevance", description="Sort order: relevance | date | duration"),
 ) -> dict:
+    # Build filter clauses and params
+    filters: list[str] = []
+    params: list = [q]  # first param is always the FTS match
+
+    if date_from:
+        filters.append("m.created_at >= ?")
+        params.append(date_from)
+    if date_to:
+        filters.append("m.created_at <= ?")
+        params.append(date_to + "T23:59:59Z")
+    if duration_min is not None:
+        filters.append("m.duration >= ?")
+        params.append(duration_min)
+    if duration_max is not None:
+        filters.append("m.duration <= ?")
+        params.append(duration_max)
+    if language:
+        filters.append("t.language = ?")
+        params.append(language)
+    if file_type:
+        filters.append("m.file_type LIKE ?")
+        params.append(f"{file_type}%")
+
+    where_extra = (" AND " + " AND ".join(filters)) if filters else ""
+
+    order_clause = {
+        "date": "m.created_at DESC",
+        "duration": "m.duration DESC",
+    }.get(sort_by, "rank")
+
     with _connect(DEFAULT_DB_PATH) as conn:
         total = conn.execute(
-            "SELECT COUNT(1) FROM segment_fts WHERE segment_fts MATCH ?",
-            (q,),
+            f"""
+            SELECT COUNT(1)
+            FROM segment_fts fts
+            JOIN segment s ON s.id = fts.rowid
+            JOIN transcript t ON t.id = s.transcript_id
+            JOIN media m ON m.id = t.media_id
+            WHERE segment_fts MATCH ?{where_extra}
+            """,
+            params,
         ).fetchone()[0]
         rows = conn.execute(
-            """
+            f"""
             SELECT s.id,
                    s.transcript_id,
                    s.start,
                    s.end,
                    s.text,
                    m.filename,
+                   m.duration,
+                   m.file_type,
+                   t.language,
                    snippet(fts, 0, '', '', '...', 12) AS snippet
             FROM segment_fts fts
             JOIN segment s ON s.id = fts.rowid
             JOIN transcript t ON t.id = s.transcript_id
             JOIN media m ON m.id = t.media_id
-            WHERE segment_fts MATCH ?
-            ORDER BY rank
+            WHERE segment_fts MATCH ?{where_extra}
+            ORDER BY {order_clause}
             LIMIT ? OFFSET ?
             """,
-            (q, limit, offset),
+            params + [limit, offset],
         ).fetchall()
     return {
         "ok": True,
@@ -402,6 +456,92 @@ def export_transcript(transcript_id: int, format: str = "txt") -> dict:
         lines.append(seg["text"].strip())
         lines.append("")
     return {"ok": True, "content": "\n".join(lines).strip()}
+
+
+def _fmt_srt_ts(ts: float) -> str:
+    hours = int(ts // 3600)
+    minutes = int((ts % 3600) // 60)
+    seconds = ts % 60
+    return f"{hours:02d}:{minutes:02d}:{seconds:06.3f}".replace(".", ",")
+
+
+def _build_srt(segments) -> str:
+    lines = []
+    for idx, seg in enumerate(segments, start=1):
+        lines.append(str(idx))
+        lines.append(f"{_fmt_srt_ts(seg['start'])} --> {_fmt_srt_ts(seg['end'])}")
+        lines.append(seg["text"].strip())
+        lines.append("")
+    return "\n".join(lines).strip()
+
+
+@app.post("/export/batch")
+def batch_export(payload: BatchExportRequest) -> StreamingResponse:
+    """Export multiple transcripts as a ZIP archive."""
+    if not payload.transcript_ids:
+        raise HTTPException(status_code=400, detail="transcript_ids cannot be empty")
+    if payload.format not in {"txt", "md", "srt"}:
+        raise HTTPException(status_code=400, detail="unsupported format")
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        with _connect(DEFAULT_DB_PATH) as conn:
+            for tid in payload.transcript_ids:
+                transcript = conn.execute(
+                    "SELECT id, content FROM transcript WHERE id = ?", (tid,)
+                ).fetchone()
+                if not transcript:
+                    continue
+                if payload.format in {"txt", "md"}:
+                    content = transcript["content"] or ""
+                else:
+                    segments = conn.execute(
+                        "SELECT start, end, text FROM segment WHERE transcript_id = ? ORDER BY start ASC",
+                        (tid,),
+                    ).fetchall()
+                    content = _build_srt(segments)
+                zf.writestr(f"transcript_{tid}.{payload.format}", content)
+    buf.seek(0)
+    return StreamingResponse(
+        buf,
+        media_type="application/zip",
+        headers={"Content-Disposition": "attachment; filename=echotrace_export.zip"},
+    )
+
+
+@app.post("/transcripts/{transcript_id}/write-subtitle")
+def write_subtitle(transcript_id: int) -> dict:
+    """Write an SRT subtitle file alongside the source media file (non-destructive)."""
+    import subprocess
+    with _connect(DEFAULT_DB_PATH) as conn:
+        transcript = conn.execute(
+            """
+            SELECT t.id, m.path as media_path, m.file_type
+            FROM transcript t
+            JOIN media m ON m.id = t.media_id
+            WHERE t.id = ?
+            """,
+            (transcript_id,),
+        ).fetchone()
+        if not transcript:
+            raise HTTPException(status_code=404, detail="transcript not found")
+        segments = conn.execute(
+            "SELECT start, end, text FROM segment WHERE transcript_id = ? ORDER BY start ASC",
+            (transcript_id,),
+        ).fetchall()
+
+    if not segments:
+        raise HTTPException(status_code=400, detail="no segments available")
+
+    media_path = Path(transcript["media_path"])
+    if not media_path.exists():
+        raise HTTPException(status_code=400, detail="media file not found")
+
+    srt_path = media_path.with_suffix(".srt")
+    srt_content = _build_srt(segments)
+    srt_path.write_text(srt_content, encoding="utf-8")
+
+    return {"ok": True, "srt_path": str(srt_path), "segments": len(segments)}
 
 
 @app.get("/models")
