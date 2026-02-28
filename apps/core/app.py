@@ -377,7 +377,7 @@ def search(
                    m.duration,
                    m.file_type,
                    t.language,
-                   snippet(fts, 0, '', '', '...', 12) AS snippet
+                   snippet(segment_fts, 0, '', '', '...', 12) AS snippet
             FROM segment_fts fts
             JOIN segment s ON s.id = fts.rowid
             JOIN transcript t ON t.id = s.transcript_id

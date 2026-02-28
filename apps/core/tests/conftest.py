@@ -6,12 +6,30 @@ import sys
 from pathlib import Path
 from unittest.mock import patch
 
+import types
+
 import pytest
 
 # Add core to path so imports work
 CORE_ROOT = Path(__file__).resolve().parent.parent
 if str(CORE_ROOT) not in sys.path:
     sys.path.insert(0, str(CORE_ROOT))
+
+# ---------------------------------------------------------------------------
+# Stub out heavy optional dependencies so tests can import core modules
+# without the real packages installed.
+# ---------------------------------------------------------------------------
+from tests.mocks.mock_whisper import MockWhisperModel  # noqa: E402
+
+_faster_whisper_stub = types.ModuleType("faster_whisper")
+_faster_whisper_stub.WhisperModel = MockWhisperModel
+sys.modules.setdefault("faster_whisper", _faster_whisper_stub)
+
+from tests.mocks.mock_chromadb import MockChromaClient  # noqa: E402
+
+_chromadb_stub = types.ModuleType("chromadb")
+_chromadb_stub.Client = MockChromaClient
+sys.modules.setdefault("chromadb", _chromadb_stub)
 
 
 @pytest.fixture()
