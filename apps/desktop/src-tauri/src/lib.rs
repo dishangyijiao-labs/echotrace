@@ -99,7 +99,7 @@ fn core_dir() -> PathBuf {
     // 1. Check environment variable first
     if let Ok(dir) = env::var("ECHOTRACE_CORE_DIR") {
         let path = PathBuf::from(&dir);
-        if path.exists() {
+        if path.exists() && path.join("app.py").exists() {
             return path;
         }
     }
@@ -119,8 +119,6 @@ fn core_dir() -> PathBuf {
                 // Core: apps/core
                 exe_dir.join("../../../..").join("core"),
                 exe_dir.join("../../../../apps/core"),
-                
-                // Alternative development paths
                 exe_dir.join("../../../..").join("apps/core"),
                 exe_dir.join("../../../../..").join("apps/core"),
             ];
@@ -141,16 +139,42 @@ fn core_dir() -> PathBuf {
         return cwd_relative;
     }
     
-    // 4. Try absolute path based on common development location
-    let home = env::var("HOME").unwrap_or_default();
-    let dev_path = PathBuf::from(&home)
-        .join("CS/work/magnetu/apps/echotrace/apps/core");
-    if dev_path.exists() {
-        return dev_path;
+    let cwd_relative_apps_core = PathBuf::from("../apps/core");
+    if cwd_relative_apps_core.join("app.py").exists() {
+        return cwd_relative_apps_core;
     }
     
-    // Last resort fallback
-    PathBuf::from("../core")
+    // 4. Try to find core directory in parent directories
+    if let Ok(cwd) = env::current_dir() {
+        let mut current = cwd;
+        let max_depth = 10;
+        for _ in 0..max_depth {
+            if let Some(parent) = current.parent() {
+                let core_path = parent.join("apps/core");
+                if core_path.join("app.py").exists() {
+                    if let Ok(canonical) = core_path.canonicalize() {
+                        return canonical;
+                    }
+                    return core_path;
+                }
+                
+                let core_path_alternate = parent.join("core");
+                if core_path_alternate.join("app.py").exists() {
+                    if let Ok(canonical) = core_path_alternate.canonicalize() {
+                        return canonical;
+                    }
+                    return core_path_alternate;
+                }
+                
+                current = parent.to_path_buf();
+            }
+        }
+    }
+    
+    // Last resort fallback - try to find apps/core relative to current directory
+    let fallback = PathBuf::from("../core");
+    eprintln!("⚠️  Unable to find core directory automatically, using fallback: {:?}", fallback);
+    fallback
 }
 
 fn log_path(app: &AppHandle, name: &str) -> Result<PathBuf, String> {
