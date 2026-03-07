@@ -183,12 +183,10 @@ function AISearch() {
             <div>
               <h3 className="font-medium text-blue-800">当前使用全文搜索模式</h3>
               <p className="text-sm text-blue-700 mt-1">
-                全文搜索可以精确匹配关键词，适合大多数场景。
-                如需启用语义搜索（理解近义词、相似概念），请设置环境变量：
+                全文搜索可精确匹配关键词，适合大多数场景。
+                如需启用语义搜索（理解近义词、相似概念），请前往{" "}
+                <strong>设置 → 搜索设置</strong> 开启「语义搜索」开关。
               </p>
-              <pre className="mt-2 bg-blue-100 p-2 rounded text-xs text-blue-900">
-                export ECHOTRACE_SEMANTIC_SEARCH=true
-              </pre>
             </div>
           </div>
         </div>

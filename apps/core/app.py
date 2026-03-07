@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import datetime as dt
 import io
+import json
 import logging
 import mimetypes
+import os
 import sqlite3
 import zipfile
 from pathlib import Path
@@ -23,30 +25,52 @@ from pipeline.model_manager import get_model_info, is_model_downloaded, download
 
 _app_log = logging.getLogger("echotrace.app")
 
-# RAG imports - 语义搜索功能（可选）
-# 设置 ECHOTRACE_SEMANTIC_SEARCH=true 启用语义搜索（需要下载模型）
-# 默认只用全文搜索（无需模型，立即可用）
-import os
-SEMANTIC_SEARCH_ENABLED = os.getenv("ECHOTRACE_SEMANTIC_SEARCH", "false").lower() == "true"
-
-if SEMANTIC_SEARCH_ENABLED:
-    try:
-        from rag.vector_store import get_vector_store, sync_all_transcripts_to_vector
-        from rag.retriever import get_retriever
-        from rag.agents import get_search_agent, ClipExtractorAgent
-        RAG_ENABLED = True
-        _app_log.info("Semantic search enabled")
-    except ImportError as e:
-        RAG_ENABLED = False
-        _app_log.warning("Semantic search module failed to load: %s", e)
-else:
-    RAG_ENABLED = False
-    _app_log.info("Running in full-text search mode (set ECHOTRACE_SEMANTIC_SEARCH=true to enable semantic search)")
-
 APP_ROOT = Path(__file__).resolve().parent
 # Allow the Tauri host to redirect data to a writable directory (e.g. ~/Library/Application Support/…)
 _data_dir = os.environ.get("ECHOTRACE_DATA_DIR")
 DEFAULT_DB_PATH = Path(_data_dir) / "app.db" if _data_dir else APP_ROOT / "data" / "app.db"
+
+# RAG imports - 语义搜索功能（可选，无需环境变量，可在设置页面开启）
+try:
+    from rag.vector_store import get_vector_store, sync_all_transcripts_to_vector
+    from rag.retriever import get_retriever
+    from rag.agents import get_search_agent, ClipExtractorAgent
+    RAG_AVAILABLE = True
+    _app_log.info("RAG modules available")
+except ImportError as e:
+    RAG_AVAILABLE = False
+    _app_log.info("RAG modules not available: %s", e)
+
+
+def _settings_path() -> Path:
+    return DEFAULT_DB_PATH.parent / "echotrace_settings.json"
+
+
+def _load_settings() -> dict:
+    path = _settings_path()
+    if path.exists():
+        try:
+            return json.loads(path.read_text())
+        except Exception:
+            pass
+    return {}
+
+
+def _save_settings(data: dict) -> None:
+    path = _settings_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2))
+
+
+def _rag_enabled_from_settings() -> bool:
+    settings = _load_settings()
+    # Honour env var for backward compat, but settings file takes precedence
+    env_flag = os.getenv("ECHOTRACE_SEMANTIC_SEARCH", "false").lower() == "true"
+    return bool(settings.get("semantic_search_enabled", env_flag)) and RAG_AVAILABLE
+
+
+RAG_ENABLED: bool = _rag_enabled_from_settings()
+_app_log.info("Semantic search %s (RAG_AVAILABLE=%s)", "enabled" if RAG_ENABLED else "disabled", RAG_AVAILABLE)
 SCHEMA_PATH = APP_ROOT / "db" / "schema.sql"
 
 _ALLOWED_MIMES = {
@@ -97,7 +121,9 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 def _require_rag() -> None:
     """Raise 501 if RAG module is not available."""
     if not RAG_ENABLED:
-        raise_api_error(501, E.RAG_NOT_ENABLED, "Semantic search is not enabled. Set ECHOTRACE_SEMANTIC_SEARCH=true.")
+        if not RAG_AVAILABLE:
+            raise_api_error(501, E.RAG_NOT_ENABLED, "Semantic search dependencies are not installed.")
+        raise_api_error(501, E.RAG_NOT_ENABLED, "Semantic search is not enabled. Enable it in Settings.")
 
 
 def validate_import_path(path_str: str) -> Path:
@@ -727,6 +753,7 @@ def rag_status() -> dict:
     """RAG 模块状态"""
     return {
         "ok": True,
+        "available": RAG_AVAILABLE,
         "enabled": RAG_ENABLED,
         "features": {
             "semantic_search": RAG_ENABLED,
@@ -734,6 +761,41 @@ def rag_status() -> dict:
             "hybrid_retrieval": RAG_ENABLED,
         } if RAG_ENABLED else {}
     }
+
+
+# ---------------------------------------------------------------------------
+# App settings endpoints
+# ---------------------------------------------------------------------------
+
+_DEFAULT_APP_SETTINGS = {
+    "semantic_search_enabled": False,
+}
+
+
+@app.get("/settings")
+def get_app_settings() -> dict:
+    """返回应用运行时设置"""
+    current = _load_settings()
+    return {"ok": True, "data": {**_DEFAULT_APP_SETTINGS, **current}}
+
+
+class AppSettingsUpdate(BaseModel):
+    semantic_search_enabled: Optional[bool] = None
+
+
+@app.patch("/settings")
+def update_app_settings(payload: AppSettingsUpdate) -> dict:
+    """更新应用运行时设置"""
+    global RAG_ENABLED
+    current = _load_settings()
+    if payload.semantic_search_enabled is not None:
+        if payload.semantic_search_enabled and not RAG_AVAILABLE:
+            raise_api_error(422, E.RAG_NOT_ENABLED, "Cannot enable semantic search: dependencies not installed.")
+        current["semantic_search_enabled"] = payload.semantic_search_enabled
+        RAG_ENABLED = payload.semantic_search_enabled and RAG_AVAILABLE
+        _app_log.info("Semantic search toggled to %s", RAG_ENABLED)
+    _save_settings(current)
+    return {"ok": True, "data": {**_DEFAULT_APP_SETTINGS, **current}}
 
 
 if __name__ == "__main__":
