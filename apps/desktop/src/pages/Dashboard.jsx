@@ -4,7 +4,8 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
   FileText, Folder, Shield, HardDrive,
-  Upload, Search, CheckCircle, Loader2, AlertCircle
+  Upload, Search, CheckCircle, Loader2, AlertCircle,
+  ArrowRight, Download, Play
 } from "lucide-react";
 import api from "../lib/api";
 import { useNavigate } from "react-router-dom";
@@ -26,17 +27,24 @@ function Dashboard() {
   const [dragOver, setDragOver] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importMsg, setImportMsg] = useState(null);
+  const [modelReady, setModelReady] = useState(false);
+  const [onboardingDismissed, setOnboardingDismissed] = useState(
+    () => localStorage.getItem("echotrace_onboarding_done") === "1"
+  );
   const unlistenRef = useRef(null);
 
   const loadData = useCallback(async (withLoading = true) => {
     try {
       if (withLoading) setLoading(true);
-      const [mediaRes, jobRes, transcriptRes, status] = await Promise.all([
+      const [mediaRes, jobRes, transcriptRes, status, modelsRes] = await Promise.all([
         api.get("/media"),
         api.get("/jobs"),
         api.get("/transcripts"),
         invoke("process_status"),
+        api.get("/models").catch(() => ({ data: { models: [] } })),
       ]);
+      const models = modelsRes.data?.models || [];
+      setModelReady(models.some((m) => m.downloaded));
       const jobs = jobRes.data?.data || [];
       const running = jobs.filter((j) => j.status === "running" || j.status === "queued");
       const done = jobs.filter((j) => j.status === "done");
@@ -218,6 +226,21 @@ function Dashboard() {
         </div>
       )}
 
+      {/* Onboarding guide — shown until all 3 steps done or dismissed */}
+      {!onboardingDismissed && !(modelReady && stats.mediaCount > 0 && stats.transcriptCount > 0) && (
+        <OnboardingGuide
+          modelReady={modelReady}
+          hasMedia={stats.mediaCount > 0}
+          hasTranscript={stats.transcriptCount > 0}
+          onDismiss={() => {
+            localStorage.setItem("echotrace_onboarding_done", "1");
+            setOnboardingDismissed(true);
+          }}
+          onImport={handleClickImport}
+          onNavigate={navigate}
+        />
+      )}
+
       {/* Drag-drop import zone */}
       <div
         className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
@@ -326,6 +349,110 @@ function Dashboard() {
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function OnboardingGuide({ modelReady, hasMedia, hasTranscript, onDismiss, onImport, onNavigate }) {
+  const steps = [
+    {
+      num: 1,
+      label: "下载转写模型",
+      desc: "选择 small 模型（推荐），下载后即可开始使用",
+      done: modelReady,
+      action: { label: "去下载", icon: Download, fn: () => onNavigate("/models") },
+    },
+    {
+      num: 2,
+      label: "导入音视频文件",
+      desc: "支持 MP4、MOV、MKV、MP3、WAV 等格式，可批量导入",
+      done: hasMedia,
+      action: { label: "导入文件", icon: Upload, fn: onImport },
+    },
+    {
+      num: 3,
+      label: "开始转写并搜索",
+      desc: "创建转写任务，完成后全文可搜索",
+      done: hasTranscript,
+      action: { label: "去任务队列", icon: Play, fn: () => onNavigate("/tasks") },
+    },
+  ];
+
+  const doneCount = steps.filter((s) => s.done).length;
+  const currentStep = steps.find((s) => !s.done);
+
+  return (
+    <div className="card border-indigo-100 bg-gradient-to-br from-indigo-50 to-white space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-semibold text-gray-900">快速上手 EchoTrace</h2>
+          <p className="text-xs text-gray-500 mt-0.5">完成 3 步即可搜索所有视频内容</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-indigo-600 font-medium">{doneCount} / 3 完成</span>
+          <button
+            type="button"
+            className="text-xs text-gray-400 hover:text-gray-600"
+            onClick={onDismiss}
+          >
+            不再显示
+          </button>
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div className="w-full bg-indigo-100 rounded-full h-1.5">
+        <div
+          className="bg-indigo-500 h-1.5 rounded-full transition-all"
+          style={{ width: `${(doneCount / 3) * 100}%` }}
+        />
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        {steps.map((step) => {
+          const Icon = step.action.icon;
+          const isActive = currentStep?.num === step.num;
+          return (
+            <div
+              key={step.num}
+              className={`rounded-xl border p-4 space-y-2 transition-colors ${
+                step.done
+                  ? "border-green-200 bg-green-50"
+                  : isActive
+                  ? "border-indigo-300 bg-indigo-50"
+                  : "border-gray-100 bg-gray-50 opacity-60"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {step.done ? (
+                  <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />
+                ) : (
+                  <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-xs font-bold shrink-0 ${
+                    isActive ? "border-indigo-500 text-indigo-500" : "border-gray-300 text-gray-400"
+                  }`}>
+                    {step.num}
+                  </span>
+                )}
+                <span className={`text-sm font-medium ${step.done ? "text-green-700 line-through" : "text-gray-800"}`}>
+                  {step.label}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 leading-relaxed">{step.desc}</p>
+              {!step.done && isActive && (
+                <button
+                  type="button"
+                  className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 mt-1"
+                  onClick={step.action.fn}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {step.action.label}
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
