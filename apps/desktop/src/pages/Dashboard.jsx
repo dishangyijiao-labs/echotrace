@@ -1,46 +1,115 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { FileText, Folder, ListTodo, Shield, HardDrive } from "lucide-react";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { open } from "@tauri-apps/plugin-dialog";
+import {
+  FileText, Folder, Shield, HardDrive,
+  Upload, Search, CheckCircle, Loader2, AlertCircle
+} from "lucide-react";
 import api from "../lib/api";
 import { useNavigate } from "react-router-dom";
 
+const MEDIA_EXTENSIONS = new Set(["mp3", "wav", "m4a", "mp4", "mov", "mkv", "avi", "webm", "flac", "ogg"]);
+
+function isMediaFile(path) {
+  const ext = path.split(".").pop()?.toLowerCase();
+  return MEDIA_EXTENSIONS.has(ext);
+}
+
 function Dashboard() {
   const navigate = useNavigate();
-  const [stats, setStats] = useState({
-    mediaCount: 0,
-    transcriptCount: 0,
-    jobCount: 0
-  });
+  const [stats, setStats] = useState({ mediaCount: 0, transcriptCount: 0, activeJobs: 0, doneJobs: 0 });
+  const [activeJobs, setActiveJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [quickSearch, setQuickSearch] = useState("");
-  const [services, setServices] = useState({
-    core_running: false,
-    worker_running: false
-  });
+  const [services, setServices] = useState({ core_running: false, worker_running: false });
+  const [dragOver, setDragOver] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState(null);
+  const unlistenRef = useRef(null);
+
+  const loadData = useCallback(async (withLoading = true) => {
+    try {
+      if (withLoading) setLoading(true);
+      const [mediaRes, jobRes, transcriptRes, status] = await Promise.all([
+        api.get("/media"),
+        api.get("/jobs"),
+        api.get("/transcripts"),
+        invoke("process_status"),
+      ]);
+      const jobs = jobRes.data?.data || [];
+      const running = jobs.filter((j) => j.status === "running" || j.status === "queued");
+      const done = jobs.filter((j) => j.status === "done");
+      setStats({
+        mediaCount: mediaRes.data?.data?.length || 0,
+        transcriptCount: transcriptRes.data?.data?.length || 0,
+        activeJobs: running.length,
+        doneJobs: done.length,
+      });
+      setActiveJobs(running.slice(0, 3));
+      setServices(status);
+    } catch (error) {
+      console.error("Failed to load dashboard data:", error);
+    } finally {
+      if (withLoading) setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const load = async () => {
+    loadData();
+    const interval = setInterval(() => loadData(false), 5000);
+
+    // Tauri native file drag-drop
+    const setupDragDrop = async () => {
       try {
-        const [mediaRes, jobRes, transcriptRes] = await Promise.all([
-          api.get("/media"),
-          api.get("/jobs"),
-          api.get("/transcripts")
-        ]);
-        setStats({
-          mediaCount: mediaRes.data?.data?.length || 0,
-          jobCount: jobRes.data?.data?.length || 0,
-          transcriptCount: transcriptRes.data?.data?.length || 0
+        const win = getCurrentWebviewWindow();
+        unlistenRef.current = await win.onDragDropEvent((event) => {
+          if (event.payload.type === "over") {
+            setDragOver(true);
+          } else if (event.payload.type === "leave" || event.payload.type === "cancel") {
+            setDragOver(false);
+          } else if (event.payload.type === "drop") {
+            setDragOver(false);
+            const paths = (event.payload.paths || []).filter(isMediaFile);
+            if (paths.length > 0) importPaths(paths);
+          }
         });
-        const status = await invoke("process_status");
-        setServices(status);
-      } catch (error) {
-        console.error("Failed to load dashboard data:", error);
-      } finally {
-        setLoading(false);
+      } catch (e) {
+        console.warn("DragDrop setup failed:", e);
       }
     };
-    load();
-  }, []);
+    setupDragDrop();
+
+    return () => {
+      clearInterval(interval);
+      unlistenRef.current?.();
+    };
+  }, [loadData]);
+
+  const importPaths = async (paths) => {
+    setImporting(true);
+    setImportMsg(null);
+    try {
+      const res = await api.post("/media/import", { paths });
+      const created = res.data?.created?.length || 0;
+      setImportMsg({ type: "success", text: `已导入 ${created} 个文件，前往任务队列开始转写` });
+      loadData(false);
+    } catch {
+      setImportMsg({ type: "error", text: "导入失败，请检查 Core 服务是否运行" });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleClickImport = async () => {
+    const selection = await open({
+      multiple: true,
+      filters: [{ name: "Media", extensions: [...MEDIA_EXTENSIONS] }],
+    });
+    if (!selection) return;
+    const paths = Array.isArray(selection) ? selection : [selection];
+    if (paths.length > 0) importPaths(paths);
+  };
 
   const controlService = async (action) => {
     try {
@@ -52,29 +121,10 @@ function Dashboard() {
     }
   };
 
-  const cards = useMemo(
-    () => [
-      {
-        title: "资源文件",
-        value: stats.mediaCount,
-        icon: Folder,
-        accent: "text-blue-600 bg-blue-50 border-blue-200"
-      },
-      {
-        title: "任务队列",
-        value: stats.jobCount,
-        icon: ListTodo,
-        accent: "text-amber-600 bg-amber-50 border-amber-200"
-      },
-      {
-        title: "转录结果",
-        value: stats.transcriptCount,
-        icon: FileText,
-        accent: "text-emerald-600 bg-emerald-50 border-emerald-200"
-      }
-    ],
-    [stats]
-  );
+  const queueSummary = useMemo(() => {
+    if (stats.activeJobs === 0) return null;
+    return `${stats.activeJobs} 个文件转写中`;
+  }, [stats.activeJobs]);
 
   if (loading) {
     return (
@@ -85,161 +135,196 @@ function Dashboard() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Hero Search Section */}
+    <div className="space-y-5">
+      {/* Hero search */}
       <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-8 text-white">
-        <h1 className="text-4xl font-bold mb-3">找到任何时刻</h1>
-        <p className="text-blue-100 mb-6 text-lg">
-          搜索你的所有视频素材，10秒定位到精确时间点
-        </p>
-        
-        {/* Quick Search */}
+        <h1 className="text-4xl font-bold mb-2">找到任何时刻</h1>
+        <p className="text-blue-100 mb-5 text-base">搜索所有视频素材，10 秒定位精确片段</p>
         <div className="bg-white rounded-xl p-2 flex items-center gap-2 shadow-lg">
+          <Search className="w-5 h-5 text-gray-400 ml-2 shrink-0" />
           <input
             type="text"
-            placeholder='搜索关键词，例如："人工智能"、"产品发布"、"张三访谈"...'
-            className="flex-1 px-4 py-3 text-gray-900 bg-transparent focus:outline-none text-lg"
+            placeholder='搜索关键词，例如："产品发布"、"张三访谈"...'
+            className="flex-1 px-3 py-2.5 text-gray-900 bg-transparent focus:outline-none text-base"
             value={quickSearch}
-            onChange={(event) => setQuickSearch(event.target.value)}
+            onChange={(e) => setQuickSearch(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && quickSearch.trim()) {
+              if (e.key === "Enter" && quickSearch.trim())
                 navigate(`/results?q=${encodeURIComponent(quickSearch.trim())}`);
-              }
             }}
           />
           <button
-            className="btn btn-primary px-6 py-3 text-lg"
+            className="btn btn-primary px-5 py-2.5"
             type="button"
             onClick={() => {
-              if (!quickSearch.trim()) return;
-              navigate(`/results?q=${encodeURIComponent(quickSearch.trim())}`);
+              if (quickSearch.trim())
+                navigate(`/results?q=${encodeURIComponent(quickSearch.trim())}`);
             }}
           >
             搜索
           </button>
         </div>
-        
-        {/* Quick Stats */}
-        <div className="mt-6 grid grid-cols-3 gap-4 text-center">
+        <div className="mt-5 grid grid-cols-3 gap-3 text-center">
           <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
             <div className="text-2xl font-bold">{stats.mediaCount}</div>
-            <div className="text-sm text-blue-100">视频素材</div>
+            <div className="text-xs text-blue-100 mt-0.5">视频素材</div>
           </div>
           <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
             <div className="text-2xl font-bold">{stats.transcriptCount}</div>
-            <div className="text-sm text-blue-100">可搜索内容</div>
+            <div className="text-xs text-blue-100 mt-0.5">可搜索内容</div>
           </div>
           <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
-            <div className="text-2xl font-bold">{stats.jobCount === 0 ? '✓' : stats.jobCount}</div>
-            <div className="text-sm text-blue-100">{stats.jobCount === 0 ? '全部完成' : '处理中'}</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Use Case Examples */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="card bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200">
-          <h3 className="font-semibold text-gray-900 mb-2">🎬 短视频剪辑</h3>
-          <p className="text-sm text-gray-600">
-            从50个长视频中快速找到"AI"相关片段，节省2小时查找时间
-          </p>
-        </div>
-        <div className="card bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200">
-          <h3 className="font-semibold text-gray-900 mb-2">🎙️ 播客制作</h3>
-          <p className="text-sm text-gray-600">
-            自动生成章节时间戳和Show Notes，一键导出
-          </p>
-        </div>
-        <div className="card bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
-          <h3 className="font-semibold text-gray-900 mb-2">📚 课程复用</h3>
-          <p className="text-sm text-gray-600">
-            搜索"Python"找到所有相关章节，重组为新课程
-          </p>
-        </div>
-      </div>
-
-      {/* Privacy Guarantee Banner - Simplified */}
-      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Shield className="w-5 h-5 text-gray-600" />
-            <div>
-              <p className="text-sm font-medium text-gray-900">100% 本地处理</p>
-              <p className="text-xs text-gray-600">所有转录和搜索在本机完成，文件不上传云端</p>
+            <div className="text-2xl font-bold">
+              {stats.activeJobs > 0 ? stats.activeJobs : <CheckCircle className="w-6 h-6 mx-auto" />}
+            </div>
+            <div className="text-xs text-blue-100 mt-0.5">
+              {stats.activeJobs > 0 ? "转写中" : "队列空闲"}
             </div>
           </div>
-          <HardDrive className="w-8 h-8 text-gray-400" />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {cards.map((card) => {
-          const Icon = card.icon;
-          return (
-            <div
-              key={card.title}
-              className={`card border ${card.accent}`}
+      {/* Active queue status */}
+      {queueSummary && (
+        <div className="card border-blue-200 bg-blue-50 space-y-3">
+          <div className="flex items-center gap-2">
+            <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+            <span className="text-sm font-medium text-blue-800">{queueSummary}</span>
+            <button
+              type="button"
+              className="ml-auto text-xs text-blue-600 hover:underline"
+              onClick={() => navigate("/tasks")}
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">{card.title}</p>
-                  <p className="text-3xl font-semibold text-gray-900">
-                    {card.value}
-                  </p>
+              查看详情 →
+            </button>
+          </div>
+          {activeJobs.map((job) => {
+            const pct = Math.round((job.progress || 0) * 100);
+            return (
+              <div key={job.id} className="space-y-1">
+                <div className="flex items-center justify-between text-xs text-blue-700">
+                  <span>任务 #{job.id} · {job.model}</span>
+                  <span>{job.status === "queued" ? "排队中" : `${pct}%`}</span>
                 </div>
-                <Icon className="w-8 h-8" />
+                <div className="w-full bg-blue-200 rounded-full h-1.5">
+                  <div
+                    className="bg-blue-500 h-1.5 rounded-full transition-all"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+      )}
+
+      {/* Drag-drop import zone */}
+      <div
+        className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+          dragOver
+            ? "border-blue-400 bg-blue-50"
+            : "border-gray-200 bg-gray-50 hover:border-blue-300 hover:bg-blue-50/50"
+        }`}
+        onClick={handleClickImport}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          // Fallback for non-Tauri drops (dev mode browser)
+          const files = Array.from(e.dataTransfer.files);
+          const paths = files.map((f) => f.path).filter(Boolean).filter(isMediaFile);
+          if (paths.length > 0) importPaths(paths);
+        }}
+      >
+        {importing ? (
+          <div className="flex flex-col items-center gap-2 text-blue-500">
+            <Loader2 className="w-8 h-8 animate-spin" />
+            <span className="text-sm">导入中...</span>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-2 text-gray-400">
+            <Upload className={`w-8 h-8 ${dragOver ? "text-blue-400" : ""}`} />
+            <p className="text-sm font-medium text-gray-600">
+              {dragOver ? "松开鼠标导入文件" : "拖拽文件到这里，或点击选择"}
+            </p>
+            <p className="text-xs text-gray-400">支持 MP4、MOV、MKV、MP3、WAV、M4A 等格式</p>
+          </div>
+        )}
       </div>
 
-      <div className="card">
-        <h2 className="text-lg font-semibold text-gray-900">下一步</h2>
-        <ul className="mt-3 space-y-2 text-sm text-gray-600">
-          <li>1. 导入音视频文件到资源管理。</li>
-          <li>2. 创建转写任务并查看处理状态。</li>
-          <li>3. 在转录结果中搜索、编辑或导出。</li>
-        </ul>
+      {importMsg && (
+        <div className={`flex items-center gap-2 text-sm px-4 py-3 rounded-lg ${
+          importMsg.type === "success"
+            ? "bg-green-50 text-green-700 border border-green-200"
+            : "bg-red-50 text-red-700 border border-red-200"
+        }`}>
+          {importMsg.type === "success"
+            ? <CheckCircle className="w-4 h-4 shrink-0" />
+            : <AlertCircle className="w-4 h-4 shrink-0" />
+          }
+          <span>{importMsg.text}</span>
+          {importMsg.type === "success" && (
+            <button
+              type="button"
+              className="ml-auto text-xs font-medium underline"
+              onClick={() => navigate("/tasks")}
+            >
+              去任务队列
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Stats + Service */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="card border-blue-200 bg-blue-50/50 flex items-center gap-4">
+          <Folder className="w-8 h-8 text-blue-500 shrink-0" />
+          <div>
+            <p className="text-xs text-gray-500">资源文件</p>
+            <p className="text-2xl font-semibold text-gray-900">{stats.mediaCount}</p>
+          </div>
+        </div>
+        <div className="card border-emerald-200 bg-emerald-50/50 flex items-center gap-4">
+          <FileText className="w-8 h-8 text-emerald-500 shrink-0" />
+          <div>
+            <p className="text-xs text-gray-500">转录结果</p>
+            <p className="text-2xl font-semibold text-gray-900">{stats.transcriptCount}</p>
+          </div>
+        </div>
+        <div className="card border-gray-200 bg-gray-50/50 flex items-center gap-4">
+          <Shield className="w-6 h-6 text-gray-400 shrink-0" />
+          <div>
+            <p className="text-xs text-gray-500">隐私保护</p>
+            <p className="text-sm font-medium text-gray-700">100% 本地处理</p>
+          </div>
+          <HardDrive className="w-5 h-5 text-gray-300 ml-auto shrink-0" />
+        </div>
       </div>
 
-      <div className="card space-y-4">
-        <h2 className="text-lg font-semibold text-gray-900">本地服务</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex items-center justify-between border rounded-xl p-4">
-            <div>
-              <p className="text-sm text-gray-500">Core API</p>
-              <p className="text-base font-medium text-gray-900">
-                {services.core_running ? "运行中" : "已停止"}
-              </p>
+      {/* Services */}
+      <div className="card space-y-3">
+        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">本地服务</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {[
+            { key: "core", label: "Core API", running: services.core_running, start: "start_core", stop: "stop_core" },
+            { key: "worker", label: "Worker", running: services.worker_running, start: "start_worker", stop: "stop_worker" },
+          ].map((svc) => (
+            <div key={svc.key} className="flex items-center justify-between border rounded-lg px-4 py-3">
+              <div className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${svc.running ? "bg-green-400" : "bg-gray-300"}`} />
+                <span className="text-sm text-gray-700">{svc.label}</span>
+                <span className="text-xs text-gray-400">{svc.running ? "运行中" : "已停止"}</span>
+              </div>
+              <button
+                type="button"
+                className="btn btn-secondary text-xs py-1 px-3"
+                onClick={() => controlService(svc.running ? svc.stop : svc.start)}
+              >
+                {svc.running ? "停止" : "启动"}
+              </button>
             </div>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() =>
-                controlService(services.core_running ? "stop_core" : "start_core")
-              }
-            >
-              {services.core_running ? "停止" : "启动"}
-            </button>
-          </div>
-          <div className="flex items-center justify-between border rounded-xl p-4">
-            <div>
-              <p className="text-sm text-gray-500">Worker</p>
-              <p className="text-base font-medium text-gray-900">
-                {services.worker_running ? "运行中" : "已停止"}
-              </p>
-            </div>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() =>
-                controlService(services.worker_running ? "stop_worker" : "start_worker")
-              }
-            >
-              {services.worker_running ? "停止" : "启动"}
-            </button>
-          </div>
+          ))}
         </div>
       </div>
     </div>
