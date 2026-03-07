@@ -58,11 +58,17 @@ _ALLOWED_MIMES = {
 _MAX_FILE_BYTES = 10 * 1024 * 1024 * 1024  # 10 GB
 
 app = FastAPI(title="EchoTrace Core")
+_ALLOWED_ORIGINS = [
+    "tauri://localhost",
+    "https://tauri.localhost",
+    "http://localhost:1420",
+    "http://127.0.0.1:1420",
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 
@@ -127,11 +133,24 @@ class MediaImportRequest(BaseModel):
     paths: List[str]
 
 
+_VALID_ENGINES = {"whisper"}
+_VALID_MODELS = {"tiny", "base", "small", "medium", "large-v2", "large-v3"}
+_VALID_DEVICES = {"cpu", "cuda", "auto"}
+
+
 class JobCreateRequest(BaseModel):
     media_id: int
     engine: str = "whisper"
     model: str = "small"
     device: str = "cpu"
+
+    def model_post_init(self, __context):
+        if self.engine not in _VALID_ENGINES:
+            raise ValueError(f"Invalid engine: {self.engine!r}")
+        if self.model not in _VALID_MODELS:
+            raise ValueError(f"Invalid model: {self.model!r}")
+        if self.device not in _VALID_DEVICES:
+            raise ValueError(f"Invalid device: {self.device!r}")
 
 
 class SummarizeRequest(BaseModel):

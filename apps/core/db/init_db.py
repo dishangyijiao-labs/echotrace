@@ -122,8 +122,11 @@ def _ensure_job_columns(conn: sqlite3.Connection) -> None:
         "total_segments": "INTEGER NOT NULL DEFAULT 0",
         "worker_id": "TEXT",
     }
+    _allowed = set(columns.keys())
     for name, definition in columns.items():
         if name not in existing:
+            if name not in _allowed:
+                raise ValueError(f"Unexpected column name: {name!r}")
             conn.execute(f"ALTER TABLE job ADD COLUMN {name} {definition}")
 
 
