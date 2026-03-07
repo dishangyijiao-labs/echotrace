@@ -343,7 +343,7 @@ def search(
     duration_max: Optional[float] = Query(default=None, ge=0, description="Max duration in seconds"),
     language: Optional[str] = Query(default=None, description="Filter by detected language code"),
     file_type: Optional[str] = Query(default=None, description="Filter by MIME type prefix e.g. video"),
-    sort_by: str = Query(default="relevance", description="Sort order: relevance | date | duration"),
+    sort_by: str = Query(default="relevance", pattern="^(relevance|date|duration)$", description="Sort order: relevance | date | duration"),
 ) -> dict:
     # Build filter clauses and params
     filters: list[str] = []
@@ -554,11 +554,14 @@ def write_subtitle(transcript_id: int) -> dict:
     if not segments:
         raise HTTPException(status_code=400, detail="no segments available")
 
-    media_path = Path(transcript["media_path"])
+    media_path = Path(transcript["media_path"]).resolve()
     if not media_path.exists():
         raise HTTPException(status_code=400, detail="media file not found")
 
-    srt_path = media_path.with_suffix(".srt")
+    srt_path = media_path.with_suffix(".srt").resolve()
+    if srt_path.parent != media_path.parent:
+        raise HTTPException(status_code=400, detail="invalid subtitle path")
+
     srt_content = _build_srt(segments)
     srt_path.write_text(srt_content, encoding="utf-8")
 
