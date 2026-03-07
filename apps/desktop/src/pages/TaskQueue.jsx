@@ -44,6 +44,8 @@ function TaskQueue() {
   const [batchDevice, setBatchDevice] = useState("cpu");
   const [batchResult, setBatchResult] = useState(null);
   const intervalRef = useRef(null);
+  const prevStatusRef = useRef({});
+  const mediaMap = useRef({});
 
   const loadJobs = useCallback(async (withLoading = true) => {
     try {
@@ -51,6 +53,29 @@ function TaskQueue() {
       const response = await api.get("/jobs");
       const data = response.data?.data || [];
       setJobs(data);
+
+      // Detect job completions and send system notifications
+      if ("Notification" in window && Notification.permission === "granted") {
+        data.forEach((job) => {
+          const prev = prevStatusRef.current[job.id];
+          if (prev && prev !== job.status) {
+            if (job.status === "done") {
+              const name = mediaMap.current?.[job.media_id]?.filename || `任务 #${job.id}`;
+              new Notification("EchoTrace 转写完成", {
+                body: `${name} 已完成，点击搜索内容。`,
+                icon: "/icons/128x128.png",
+              });
+            } else if (job.status === "error") {
+              const name = mediaMap.current?.[job.media_id]?.filename || `任务 #${job.id}`;
+              new Notification("EchoTrace 转写失败", {
+                body: `${name} 转写时出错，可点击重试。`,
+              });
+            }
+          }
+          prevStatusRef.current[job.id] = job.status;
+        });
+      }
+
       setProgressHistory((prev) => {
         const next = { ...prev };
         const now = Date.now();
@@ -80,6 +105,13 @@ function TaskQueue() {
     }
   }, []);
 
+  // Request notification permission once
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
+
   useEffect(() => {
     loadJobs();
     loadMedia();
@@ -87,11 +119,14 @@ function TaskQueue() {
     return () => clearInterval(intervalRef.current);
   }, [loadJobs, loadMedia]);
 
-  const mediaMap = useMemo(() => {
+  const mediaMapState = useMemo(() => {
     const map = {};
     media.forEach((m) => { map[m.id] = m; });
     return map;
   }, [media]);
+
+  // Keep a ref so notification callbacks can access the latest media names
+  mediaMap.current = mediaMapState;
 
   // 已有未完成任务的 media_id，用于标记
   const busyMediaIds = useMemo(() => {
@@ -328,7 +363,7 @@ function TaskQueue() {
                 const percent = Math.round(progress * 100);
                 const history = progressHistory[job.id] || [];
                 const eta = job.status === "running" ? calcEta(history) : null;
-                const filename = mediaMap[job.media_id]?.filename || `媒体 ${job.media_id}`;
+                const filename = mediaMapState[job.media_id]?.filename || `媒体 ${job.media_id}`;
                 return (
                   <tr key={job.id}>
                     <td className="max-w-xs truncate text-sm" title={filename}>

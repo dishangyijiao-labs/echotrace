@@ -516,25 +516,41 @@ fn save_mcp_config(app: AppHandle, config: serde_json::Value) -> Result<(), Stri
 
 fn handle_tray(app: &AppHandle) -> tauri::Result<()> {
     let menu = MenuBuilder::new(app)
+        .text("open", "Open EchoTrace")
+        .separator()
         .text("start_core", "Start Core")
         .text("stop_core", "Stop Core")
         .separator()
         .text("start_worker", "Start Worker")
         .text("stop_worker", "Stop Worker")
         .separator()
-        .text("quit", "Quit")
+        .text("quit", "Quit EchoTrace")
         .build()?;
 
     let mut builder = TrayIconBuilder::new()
         .menu(&menu)
-        .tooltip("EchoTrace");
+        .tooltip("EchoTrace — running in background");
 
     if let Some(icon) = app.default_window_icon().cloned() {
         builder = builder.icon(icon);
     }
 
     builder
+        .on_tray_icon_event(|tray, event| {
+            if let tauri::tray::TrayIconEvent::Click { .. } = event {
+                if let Some(window) = tray.app_handle().get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
+        })
         .on_menu_event(|app, event| match event.id() {
+            id if id == "open" => {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
             id if id == "start_core" => {
                 let _ = start_process(app, &app.state::<ProcessState>().core, "app.py", "core.log");
             }
@@ -646,11 +662,11 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            // Clean up processes when app is closing
-            if let tauri::WindowEvent::CloseRequested { .. } = event {
-                let state = window.state::<ProcessState>();
-                let _ = stop_process(&state.worker);
-                let _ = stop_process(&state.core);
+            // Hide window instead of killing processes — Worker keeps running in background.
+            // User can quit fully via the tray menu "Quit EchoTrace".
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                let _ = window.hide();
             }
         })
         .invoke_handler(tauri::generate_handler![
