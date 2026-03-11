@@ -356,12 +356,55 @@ fn spawn_process(app: &AppHandle, script: &str, log_name: &str) -> Result<Child,
     let data_dir = app_data_dir(app);
     eprintln!("🚀 spawn_process: python={:?} script={} cwd={:?} data={:?}", python, script, core, data_dir);
 
-    Command::new(python)
-        .arg(script)
+    // Augment PATH so child processes can find ffmpeg, git, etc.
+    // macOS .app bundles have a minimal PATH that excludes Homebrew paths.
+    let system_path = env::var("PATH").unwrap_or_default();
+    let extra_paths = [
+        "/opt/homebrew/bin",
+        "/usr/local/bin",
+        "/opt/local/bin",
+        "/usr/bin",
+    ];
+    let augmented_path = extra_paths
+        .iter()
+        .filter(|p| !system_path.contains(*p))
+        .copied()
+        .chain(std::iter::once(system_path.as_str()))
+        .collect::<Vec<_>>()
+        .join(":");
+
+    // Point to bundled ffmpeg if it exists: <core>/bin/ffmpeg
+    let bundled_ffmpeg = core.join("bin").join("ffmpeg");
+
+    // Sanitize NO_PROXY: httpx cannot parse IPv6 CIDR entries (e.g. fd7a:115c:a1e0::/48)
+    // and misinterprets the colons as port separators. Strip them to avoid runtime errors.
+    let no_proxy = env::var("NO_PROXY")
+        .or_else(|_| env::var("no_proxy"))
+        .unwrap_or_default();
+    let sanitized_no_proxy: String = no_proxy
+        .split(',')
+        .filter(|entry| {
+            let trimmed = entry.trim();
+            // Keep entries that don't look like raw IPv6 (contain multiple colons)
+            trimmed.matches(':').count() < 2
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+
+    let mut cmd = Command::new(python);
+    cmd.arg(script)
         .current_dir(&core)
+        .env("PATH", &augmented_path)
+        .env("NO_PROXY", &sanitized_no_proxy)
+        .env("no_proxy", &sanitized_no_proxy)
         .env("MCP_PROVIDERS_PATH", providers_file)
-        .env("ECHOTRACE_DATA_DIR", &data_dir)
-        .stdout(Stdio::from(stdout))
+        .env("ECHOTRACE_DATA_DIR", &data_dir);
+
+    if bundled_ffmpeg.exists() {
+        cmd.env("ECHOTRACE_FFMPEG", &bundled_ffmpeg);
+    }
+
+    cmd.stdout(Stdio::from(stdout))
         .stderr(Stdio::from(stderr))
         .spawn()
         .map_err(|err| format!("spawn failed (cwd={:?}): {}", core, err))
