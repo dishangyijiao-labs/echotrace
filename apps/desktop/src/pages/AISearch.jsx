@@ -1,22 +1,22 @@
 import { useEffect, useState } from "react";
 import { Bot, Sparkles, Search, Scissors, Database, Loader2, AlertCircle, CheckCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import api from "../lib/api";
 
 function AISearch() {
+  const { t } = useTranslation();
   const [ragStatus, setRagStatus] = useState({
     enabled: false,
     features: {}
   });
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  
-  // 搜索状态
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchMode, setSearchMode] = useState("keyword"); // 默认关键词搜索
+  const [searchMode, setSearchMode] = useState("keyword");
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
-  
-  // Agent 查询
+
   const [agentQuery, setAgentQuery] = useState("");
   const [agentType, setAgentType] = useState("search");
   const [agentResponse, setAgentResponse] = useState("");
@@ -34,7 +34,6 @@ function AISearch() {
         enabled: data.enabled || false,
         features: data.features || {}
       });
-      // 如果 RAG 启用，默认使用混合检索
       if (data.enabled) {
         setSearchMode("hybrid");
       }
@@ -52,14 +51,13 @@ function AISearch() {
       const response = await api.post("/rag/sync-all", null, {
         params: { embedding_provider: "local" }
       });
-      alert(
-        `同步完成！\n` +
-        `处理转录: ${response.data.transcripts} 个\n` +
-        `索引分段: ${response.data.segments} 个`
-      );
+      alert(t('aiSearch.syncComplete', {
+        transcripts: response.data.transcripts,
+        segments: response.data.segments
+      }));
     } catch (error) {
       console.error("Sync failed:", error);
-      alert("同步失败：" + (error.response?.data?.detail || error.message));
+      alert(t('aiSearch.syncFailed') + (error.response?.data?.detail || error.message));
     } finally {
       setSyncing(false);
     }
@@ -72,21 +70,18 @@ function AISearch() {
     setSearching(true);
     try {
       let response;
-      
+
       if (searchMode === "keyword" || !ragStatus.enabled) {
-        // 全文搜索（不需要 RAG）
         response = await api.get("/search", {
           params: { q: searchQuery, limit: 20, offset: 0 }
         });
-        // 转换数据格式
         const data = response.data?.data || [];
         setSearchResults(data.map(item => ({
           ...item,
-          source: "全文搜索",
+          source: t('aiSearch.search.fullTextSource'),
           score: 1.0
         })));
       } else {
-        // 语义/混合搜索（需要 RAG）
         response = await api.post("/search/semantic", {
         query: searchQuery,
         mode: searchMode,
@@ -96,7 +91,7 @@ function AISearch() {
       }
     } catch (error) {
       console.error("Search failed:", error);
-      alert("搜索失败：" + (error.response?.data?.detail || error.message));
+      alert(t('aiSearch.searchFailed') + (error.response?.data?.detail || error.message));
     } finally {
       setSearching(false);
     }
@@ -113,10 +108,10 @@ function AISearch() {
         query: agentQuery,
         agent_type: agentType,
       });
-      setAgentResponse(response.data?.response || "无响应");
+      setAgentResponse(response.data?.response || t('aiSearch.agent.noResponse'));
     } catch (error) {
       console.error("Agent query failed:", error);
-      setAgentResponse("查询失败：" + (error.response?.data?.detail || error.message));
+      setAgentResponse(t('aiSearch.agent.queryFailed') + (error.response?.data?.detail || error.message));
     } finally {
       setAgentRunning(false);
     }
@@ -132,27 +127,27 @@ function AISearch() {
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
-      {/* 页面标题 */}
+      {/* Page title */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Sparkles className="w-8 h-8 text-purple-500" />
-          <h1 className="text-3xl font-bold">智能搜索</h1>
+          <h1 className="text-3xl font-bold">{t('aiSearch.title')}</h1>
         </div>
-        
-        {/* RAG 状态指示器 */}
+
+        {/* RAG status indicator */}
         <div className="flex items-center gap-4">
           {ragStatus.enabled ? (
             <div className="flex items-center gap-2 text-green-600 text-sm">
               <CheckCircle className="w-4 h-4" />
-              语义搜索已启用
+              {t('aiSearch.ragEnabled')}
             </div>
           ) : (
             <div className="flex items-center gap-2 text-yellow-600 text-sm">
               <AlertCircle className="w-4 h-4" />
-              仅全文搜索
+              {t('aiSearch.ragDisabled')}
             </div>
           )}
-          
+
           {ragStatus.enabled && (
         <button
           onClick={handleSyncAll}
@@ -162,12 +157,12 @@ function AISearch() {
           {syncing ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              同步中...
+              {t('aiSearch.syncing')}
             </>
           ) : (
             <>
               <Database className="w-4 h-4" />
-              同步向量库
+              {t('aiSearch.syncVectorDb')}
             </>
           )}
         </button>
@@ -175,47 +170,46 @@ function AISearch() {
         </div>
       </div>
 
-      {/* 搜索功能说明 */}
+      {/* Full-text mode notice */}
       {!ragStatus.enabled && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-blue-500 mt-0.5" />
             <div>
-              <h3 className="font-medium text-blue-800">当前使用全文搜索模式</h3>
+              <h3 className="font-medium text-blue-800">{t('aiSearch.fullTextMode.title')}</h3>
               <p className="text-sm text-blue-700 mt-1">
-                全文搜索可精确匹配关键词，适合大多数场景。
-                如需启用语义搜索（理解近义词、相似概念），请前往{" "}
-                <strong>设置 → 搜索设置</strong> 开启「语义搜索」开关。
+                {t('aiSearch.fullTextMode.desc')}{" "}
+                <strong>{t('aiSearch.fullTextMode.settingsLink')}</strong> {t('aiSearch.fullTextMode.switchSuffix')}
               </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* 搜索 */}
+      {/* Search */}
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center gap-2 mb-4">
           <Search className="w-5 h-5 text-blue-500" />
           <h2 className="text-xl font-semibold">
-            {ragStatus.enabled ? "智能搜索" : "全文搜索"}
+            {ragStatus.enabled ? t('aiSearch.search.titleSmart') : t('aiSearch.search.titleFulltext')}
           </h2>
         </div>
-        
+
         <form onSubmit={handleSearch} className="space-y-4">
           <div>
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={ragStatus.enabled 
-                ? "输入搜索内容（支持语义理解）..." 
-                : "输入关键词搜索..."
+              placeholder={ragStatus.enabled
+                ? t('aiSearch.search.placeholderSmart')
+                : t('aiSearch.search.placeholderFulltext')
               }
               className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          
-          {/* 搜索模式选择 - 只有 RAG 启用时才显示语义选项 */}
+
+          {/* Search mode selection */}
           <div className="flex items-center gap-4">
             <label className="flex items-center gap-2">
               <input
@@ -224,9 +218,9 @@ function AISearch() {
                 checked={searchMode === "keyword"}
                 onChange={(e) => setSearchMode(e.target.value)}
               />
-              <span>关键词搜索</span>
+              <span>{t('aiSearch.search.keyword')}</span>
             </label>
-            
+
             {ragStatus.enabled && (
               <>
                 <label className="flex items-center gap-2">
@@ -236,7 +230,7 @@ function AISearch() {
                     checked={searchMode === "hybrid"}
                     onChange={(e) => setSearchMode(e.target.value)}
                   />
-              <span>混合检索（推荐）</span>
+              <span>{t('aiSearch.search.hybrid')}</span>
             </label>
             <label className="flex items-center gap-2">
               <input
@@ -245,25 +239,25 @@ function AISearch() {
                 checked={searchMode === "semantic"}
                 onChange={(e) => setSearchMode(e.target.value)}
               />
-              <span>语义检索</span>
+              <span>{t('aiSearch.search.semantic')}</span>
             </label>
               </>
             )}
           </div>
-          
+
           <button
             type="submit"
             disabled={searching}
             className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
           >
-            {searching ? "搜索中..." : "搜索"}
+            {searching ? t('aiSearch.search.searching') : t('aiSearch.search.searchButton')}
           </button>
         </form>
 
-        {/* 搜索结果 */}
+        {/* Search results */}
         {searchResults.length > 0 && (
           <div className="mt-6 space-y-3">
-            <h3 className="font-semibold text-gray-700">搜索结果 ({searchResults.length})</h3>
+            <h3 className="font-semibold text-gray-700">{t('aiSearch.search.resultCount', { count: searchResults.length })}</h3>
             {searchResults.map((result, idx) => (
               <div key={idx} className="border rounded-lg p-4 hover:bg-gray-50">
                 <div className="flex items-start justify-between mb-2">
@@ -276,7 +270,7 @@ function AISearch() {
                       </span>
                       {result.score < 1 && (
                       <span className="ml-2 text-xs text-gray-400">
-                          相似度: {result.score?.toFixed(3)}
+                          {t('aiSearch.search.similarity', { score: result.score?.toFixed(3) })}
                       </span>
                       )}
                     </div>
@@ -289,28 +283,28 @@ function AISearch() {
         )}
       </div>
 
-      {/* Agent 查询 - 只有 RAG 启用时显示 */}
+      {/* Agent query */}
       {ragStatus.enabled && ragStatus.features?.agent_query && (
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center gap-2 mb-4">
           <Bot className="w-5 h-5 text-purple-500" />
-            <h2 className="text-xl font-semibold">AI 智能助手</h2>
+            <h2 className="text-xl font-semibold">{t('aiSearch.agent.title')}</h2>
             <span className="text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded">
-              需要配置 LLM API
+              {t('aiSearch.agent.requireLLM')}
             </span>
         </div>
-        
+
         <form onSubmit={handleAgentQuery} className="space-y-4">
           <div>
             <textarea
               value={agentQuery}
               onChange={(e) => setAgentQuery(e.target.value)}
-              placeholder="向 AI 助手提问（例如：找出所有关于产品设计的片段，并建议如何剪辑成短视频）"
+              placeholder={t('aiSearch.agent.placeholder')}
               rows={3}
               className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
             />
           </div>
-          
+
           <div className="flex items-center gap-4">
             <label className="flex items-center gap-2">
               <input
@@ -320,7 +314,7 @@ function AISearch() {
                 onChange={(e) => setAgentType(e.target.value)}
               />
               <Search className="w-4 h-4" />
-              <span>搜索助手</span>
+              <span>{t('aiSearch.agent.searchAssistant')}</span>
             </label>
             <label className="flex items-center gap-2">
               <input
@@ -330,10 +324,10 @@ function AISearch() {
                 onChange={(e) => setAgentType(e.target.value)}
               />
               <Scissors className="w-4 h-4" />
-              <span>剪辑建议助手</span>
+              <span>{t('aiSearch.agent.clipAssistant')}</span>
             </label>
           </div>
-          
+
           <button
             type="submit"
             disabled={agentRunning}
@@ -342,21 +336,21 @@ function AISearch() {
             {agentRunning ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                AI 思考中...
+                {t('aiSearch.agent.thinking')}
               </>
             ) : (
               <>
                 <Bot className="w-4 h-4" />
-                发送
+                {t('aiSearch.agent.send')}
               </>
             )}
           </button>
         </form>
 
-        {/* Agent 响应 */}
+        {/* Agent response */}
         {agentResponse && (
           <div className="mt-6 border rounded-lg p-4 bg-purple-50">
-            <h3 className="font-semibold text-purple-900 mb-2">AI 助手回复：</h3>
+            <h3 className="font-semibold text-purple-900 mb-2">{t('aiSearch.agent.response')}</h3>
             <div className="whitespace-pre-wrap text-gray-800">{agentResponse}</div>
           </div>
         )}

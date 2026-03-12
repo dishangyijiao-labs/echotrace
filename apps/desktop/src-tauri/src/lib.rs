@@ -1,6 +1,8 @@
 use std::{
+    collections::hash_map::DefaultHasher,
     env,
     fs::{self, OpenOptions},
+    hash::Hasher,
     net::TcpStream,
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
@@ -159,20 +161,38 @@ fn find_system_python() -> Option<PathBuf> {
 /// Recreates the venv if it was built with a too-old Python.
 /// Uses a marker file (.installed) to skip pip on subsequent launches.
 /// Returns the path to the python executable inside the venv.
+/// Hash the contents of a file to detect changes.
+fn file_hash(path: &Path) -> Option<String> {
+    let bytes = fs::read(path).ok()?;
+    let mut hasher = DefaultHasher::new();
+    hasher.write(&bytes);
+    Some(format!("{:x}", hasher.finish()))
+}
+
 fn setup_venv(app: &AppHandle) -> Result<PathBuf, String> {
     let venv = venv_dir(app);
     let python_bin = venv.join("bin").join("python3");
     let marker = venv.join(".installed");
+    let req = core_dir().join("requirements.txt");
+
+    // Compute hash of current requirements.txt to detect dependency changes
+    let req_hash = if req.exists() { file_hash(&req).unwrap_or_default() } else { String::new() };
+    let marker_hash = fs::read_to_string(&marker).unwrap_or_default();
+    let deps_changed = req_hash != marker_hash;
 
     // Check existing venv Python version
     if python_bin.exists() {
         if let Some(ver) = python_version(&python_bin) {
             if ver >= MIN_PYTHON {
-                if marker.exists() {
+                if marker.exists() && !deps_changed {
                     eprintln!("✅ Venv ready (Python {}.{})", ver.0, ver.1);
                     return Ok(python_bin);
                 }
-                eprintln!("✅ Venv Python ok ({}.{}), packages not yet installed", ver.0, ver.1);
+                if deps_changed {
+                    eprintln!("📦 requirements.txt changed, reinstalling packages");
+                } else {
+                    eprintln!("✅ Venv Python ok ({}.{}), packages not yet installed", ver.0, ver.1);
+                }
                 // Fall through to pip install
             } else {
                 eprintln!("⚠️  Venv Python {}.{} < {}.{}, recreating", ver.0, ver.1, MIN_PYTHON.0, MIN_PYTHON.1);
@@ -198,8 +218,7 @@ fn setup_venv(app: &AppHandle) -> Result<PathBuf, String> {
         }
     }
 
-    // Install requirements (only when marker is absent)
-    let req = core_dir().join("requirements.txt");
+    // Install requirements (when marker is absent or requirements changed)
     if req.exists() {
         eprintln!("📦 Installing requirements from {:?}", req);
         let pip = venv.join("bin").join("pip");
@@ -212,8 +231,8 @@ fn setup_venv(app: &AppHandle) -> Result<PathBuf, String> {
             eprintln!("⚠️  pip stderr: {}", stderr);
             return Err(format!("pip install failed: {}", stderr));
         }
-        // Write marker so we skip pip on next launch
-        let _ = fs::write(&marker, "ok");
+        // Write requirements hash as marker so we only reinstall when deps change
+        let _ = fs::write(&marker, &req_hash);
         eprintln!("✅ Requirements installed");
     } else {
         eprintln!("⚠️  requirements.txt not found at {:?}", req);

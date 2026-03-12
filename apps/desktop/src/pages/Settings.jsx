@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { Sparkles, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { DEFAULT_SETTINGS, loadSettings, saveSettings } from "../lib/settings";
 import api from "../lib/api";
 
 function Settings() {
+  const { t } = useTranslation();
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [ragAvailable, setRagAvailable] = useState(false);
   const [semanticEnabled, setSemanticEnabled] = useState(false);
@@ -39,9 +41,9 @@ function Settings() {
     try {
       const res = await api.patch("/settings", { semantic_search_enabled: value });
       setSemanticEnabled(res.data?.data?.semantic_search_enabled ?? value);
-      setSemanticMsg({ ok: true, text: value ? "语义搜索已启用" : "已切换为全文搜索" });
+      setSemanticMsg({ ok: true, text: value ? t('settings.search.semanticEnabled') : t('settings.search.semanticDisabled') });
     } catch (err) {
-      setSemanticMsg({ ok: false, text: err.response?.data?.message || "设置失败，请重试" });
+      setSemanticMsg({ ok: false, text: err.response?.data?.message || t('settings.search.semanticFailed') });
     } finally {
       setSemanticSaving(false);
     }
@@ -50,15 +52,15 @@ function Settings() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">设置</h1>
-        <p className="mt-2 text-gray-600">控制播放、搜索等功能行为。</p>
+        <h1 className="text-3xl font-bold text-gray-900">{t('settings.title')}</h1>
+        <p className="mt-2 text-gray-600">{t('settings.subtitle')}</p>
       </div>
 
-      {/* 播放设置 */}
+      {/* Playback settings */}
       <div className="card space-y-6">
-        <h2 className="text-lg font-semibold text-gray-900">播放设置</h2>
+        <h2 className="text-lg font-semibold text-gray-900">{t('settings.playback.title')}</h2>
         <div>
-          <label className="text-sm font-medium text-gray-700">播放速度</label>
+          <label className="text-sm font-medium text-gray-700">{t('settings.playback.speed')}</label>
           <div className="mt-2 flex items-center gap-4">
             <input
               type="range"
@@ -79,8 +81,8 @@ function Settings() {
 
         <div className="flex items-center justify-between border rounded-xl p-4">
           <div>
-            <p className="text-sm font-medium text-gray-900">点击分段自动播放</p>
-            <p className="text-xs text-gray-500">跳转到时间轴后立即播放</p>
+            <p className="text-sm font-medium text-gray-900">{t('settings.playback.autoPlay')}</p>
+            <p className="text-xs text-gray-500">{t('settings.playback.autoPlayDesc')}</p>
           </div>
           <input
             type="checkbox"
@@ -91,8 +93,8 @@ function Settings() {
 
         <div className="flex items-center justify-between border rounded-xl p-4">
           <div>
-            <p className="text-sm font-medium text-gray-900">循环当前分段</p>
-            <p className="text-xs text-gray-500">播放到分段结尾后自动回放</p>
+            <p className="text-sm font-medium text-gray-900">{t('settings.playback.loopSegment')}</p>
+            <p className="text-xs text-gray-500">{t('settings.playback.loopSegmentDesc')}</p>
           </div>
           <input
             type="checkbox"
@@ -102,29 +104,29 @@ function Settings() {
         </div>
       </div>
 
-      {/* 搜索设置 */}
+      {/* Search settings */}
       <div className="card space-y-4">
         <div className="flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-purple-500" />
-          <h2 className="text-lg font-semibold text-gray-900">搜索设置</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{t('settings.search.title')}</h2>
         </div>
 
         {semanticLoading ? (
           <div className="flex items-center gap-2 text-gray-400 text-sm py-2">
             <Loader2 className="w-4 h-4 animate-spin" />
-            加载中…
+            {t('settings.search.loading')}
           </div>
         ) : (
           <div className="border rounded-xl p-4 space-y-3">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-medium text-gray-900">语义搜索</p>
+                <p className="text-sm font-medium text-gray-900">{t('settings.search.semanticSearch')}</p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  理解近义词与相关概念，搜索更智能。需要本地嵌入模型（首次使用会自动下载）。
+                  {t('settings.search.semanticDesc')}
                 </p>
                 {!ragAvailable && (
                   <p className="text-xs text-yellow-600 mt-1">
-                    当前环境未安装语义搜索依赖，请联系开发者或查看文档。
+                    {t('settings.search.semanticUnavailable')}
                   </p>
                 )}
               </div>
@@ -158,8 +160,8 @@ function Settings() {
 
             <p className="text-xs text-gray-400">
               {semanticEnabled
-                ? "当前：语义搜索已启用，可在「智能搜索」页面使用混合检索。"
-                : "当前：全文搜索模式（精确匹配关键词）。"}
+                ? t('settings.search.statusEnabled')
+                : t('settings.search.statusDisabled')}
             </p>
           </div>
         )}

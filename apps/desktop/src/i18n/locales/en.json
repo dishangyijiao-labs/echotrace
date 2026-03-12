@@ -1,7 +1,8 @@
 {
   "app": {
     "title": "EchoTrace",
-    "subtitle": "Local Transcription Tool"
+    "subtitle": "Local Transcription Tool",
+    "headerTagline": "Local-only transcription workspace"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -10,58 +11,375 @@
     "taskQueue": "Task Queue",
     "services": "Services",
     "models": "Models & Keys",
-    "settings": "Settings"
+    "settings": "Settings",
+    "aiSearch": "AI Search",
+    "closeSidebar": "Close navigation",
+    "closeSidebarOverlay": "Close navigation overlay",
+    "openSidebar": "Open navigation"
   },
   "dashboard": {
     "title": "Dashboard",
     "statistics": "Statistics",
-    "recentFiles": "Recent Files"
+    "recentFiles": "Recent Files",
+    "hero": {
+      "title": "Find Any Moment",
+      "subtitle": "Search all your footage, pinpoint the exact clip in 10 seconds",
+      "searchPlaceholder": "Search keywords, e.g.: \"product launch\", \"interview\"...",
+      "searchButton": "Search"
+    },
+    "stats": {
+      "mediaCount": "Media Files",
+      "searchableContent": "Searchable Content",
+      "transcribing": "Transcribing",
+      "queueIdle": "Queue Idle"
+    },
+    "queue": {
+      "summary": "{{count}} file(s) transcribing",
+      "viewDetails": "View details →",
+      "taskLabel": "Task #{{id}} · {{model}}",
+      "queued": "Queued"
+    },
+    "import": {
+      "importing": "Importing...",
+      "dropHere": "Release to import files",
+      "dragOrClick": "Drag files here, or click to select",
+      "supportedFormats": "Supports MP4, MOV, MKV, MP3, WAV, M4A and more",
+      "successMessage": "Imported {{count}} file(s). Go to Task Queue to start transcription",
+      "errorMessage": "Import failed. Please check if Core service is running",
+      "goToQueue": "Go to Task Queue"
+    },
+    "statsCards": {
+      "resourceFiles": "Resource Files",
+      "transcriptionResults": "Transcription Results",
+      "privacyProtection": "Privacy Protection",
+      "localProcessing": "100% Local Processing"
+    },
+    "services": {
+      "title": "Local Services",
+      "running": "Running",
+      "stopped": "Stopped",
+      "stop": "Stop",
+      "start": "Start"
+    },
+    "onboarding": {
+      "title": "Get Started with EchoTrace",
+      "subtitle": "Complete 3 steps to search all your video content",
+      "progress": "{{done}} / 3 complete",
+      "dismiss": "Dismiss",
+      "step1": {
+        "label": "Download Transcription Model",
+        "desc": "Choose the small model (recommended). Ready to use after download",
+        "action": "Go to Download"
+      },
+      "step2": {
+        "label": "Import Media Files",
+        "desc": "Supports MP4, MOV, MKV, MP3, WAV and more. Batch import available",
+        "action": "Import Files"
+      },
+      "step3": {
+        "label": "Start Transcribing & Searching",
+        "desc": "Create transcription tasks. Full-text search available after completion",
+        "action": "Go to Task Queue"
+      }
+    }
   },
   "resources": {
-    "title": "Media Resources",
+    "title": "Resource Manager",
+    "subtitle": "Import local media files to prepare for transcription tasks.",
     "import": "Import",
     "search": "Search",
     "filter": "Filter",
     "status": "Status",
-    "actions": "Actions"
+    "actions": "Actions",
+    "refresh": "Refresh",
+    "importFile": "Import Files",
+    "importing": "Importing...",
+    "searchPlaceholder": "Search filenames",
+    "importSuccess": "Imported {{count}} file(s)",
+    "importError": "Import failed. Please check if Core service is running.",
+    "table": {
+      "filename": "Filename",
+      "type": "Type",
+      "path": "Path"
+    },
+    "empty": {
+      "title": "No Resources",
+      "text": "Click the import button to add your first file."
+    }
   },
   "results": {
     "title": "Transcription Results",
+    "subtitle": "Search keywords and jump to the corresponding timeline.",
     "search": "Search in transcripts",
     "export": "Export",
-    "segments": "Segments"
+    "segments": "Segments",
+    "refresh": "Refresh",
+    "searchPlaceholder": "Search keywords (across all transcripts)",
+    "filter": "Filter",
+    "filters": {
+      "dateFrom": "Start Date",
+      "dateTo": "End Date",
+      "fileType": "File Type",
+      "all": "All",
+      "video": "Video",
+      "audio": "Audio",
+      "durationMin": "Min Duration (sec)",
+      "durationMax": "Max Duration (sec)",
+      "durationMaxPlaceholder": "Unlimited",
+      "languageCode": "Language Code",
+      "languagePlaceholder": "e.g. zh, en, ja",
+      "sortBy": "Sort By",
+      "relevance": "Relevance",
+      "date": "Date",
+      "duration": "Duration",
+      "clearFilters": "Clear Filters"
+    },
+    "searchResults": {
+      "total": "{{total}} results, showing {{start}}–{{end}}",
+      "prevPage": "Previous",
+      "nextPage": "Next",
+      "searching": "Searching...",
+      "noMatch": "No matching segments",
+      "noMatchHint": "Try a different keyword or adjust your filters.",
+      "locate": "Locate"
+    },
+    "table": {
+      "filename": "Filename",
+      "segment": "Segment",
+      "time": "Time",
+      "actions": "Actions",
+      "summary": "Summary",
+      "language": "Language"
+    },
+    "batch": {
+      "selected": "{{count}} selected",
+      "exportTxt": "Batch Export TXT",
+      "exportSrt": "Batch Export SRT",
+      "batchDelete": "Batch Delete"
+    },
+    "delete": {
+      "confirmTitle": "Delete Confirmation",
+      "confirmMessage": "Delete transcription for \"{{filename}}\"? This cannot be undone.",
+      "batchConfirmTitle": "Batch Delete Confirmation",
+      "batchConfirmMessage": "Delete {{count}} selected transcription(s)? This cannot be undone.",
+      "buttonTitle": "Delete"
+    },
+    "empty": {
+      "title": "No Transcription Results",
+      "text": "Results will appear here after transcription tasks complete."
+    }
   },
   "taskQueue": {
     "title": "Task Queue",
+    "subtitle": "Create transcription tasks in batch and track their progress.",
     "pending": "Pending",
     "running": "Running",
     "completed": "Completed",
-    "failed": "Failed"
+    "failed": "Failed",
+    "refresh": "Refresh",
+    "status": {
+      "queued": "Queued",
+      "running": "Processing",
+      "done": "Completed",
+      "error": "Failed",
+      "cancelled": "Cancelled"
+    },
+    "model": {
+      "tiny": "tiny  — fastest, low accuracy",
+      "small": "small — recommended, balanced",
+      "medium": "medium — slower, high accuracy",
+      "large": "large — slowest, highest accuracy"
+    },
+    "eta": {
+      "seconds": "~{{s}} sec",
+      "minutes": "~{{m}} min",
+      "hours": "~{{h}} hr"
+    },
+    "batch": {
+      "title": "Create Batch Tasks",
+      "selectAll": "Select All",
+      "clearAll": "Clear",
+      "noFiles": "No available files (all files already in queue)",
+      "modelLabel": "Model",
+      "deviceLabel": "Device",
+      "cudaOption": "CUDA (requires NVIDIA GPU)",
+      "submitting": "Submitting...",
+      "startTranscribe": "Start Transcription ({{count}} files)",
+      "selectToStart": "Select files to start",
+      "resultSuccess": "{{success}} succeeded",
+      "resultFailed": ", {{failed}} failed"
+    },
+    "table": {
+      "file": "File",
+      "model": "Model",
+      "status": "Status",
+      "progress": "Progress",
+      "eta": "ETA",
+      "updatedAt": "Updated"
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "cancelTitle": "Cancel task",
+      "retry": "Retry"
+    },
+    "notification": {
+      "doneTitle": "EchoTrace Transcription Complete",
+      "doneBody": "{{name}} is done. Click to search its content.",
+      "errorTitle": "EchoTrace Transcription Failed",
+      "errorBody": "{{name}} encountered an error. Click to retry."
+    },
+    "mediaFallback": "Media {{id}}",
+    "taskFallback": "Task #{{id}}",
+    "empty": {
+      "title": "No Tasks",
+      "text": "Select files and create your first transcription task."
+    }
   },
   "services": {
-    "title": "Services",
-    "core": "Core API",
-    "worker": "Transcription Worker",
+    "title": "Services & Logs",
+    "subtitle": "Manage local Core and Worker services, and view logs.",
+    "core": "Core Service",
+    "worker": "Worker",
     "status": "Status",
     "start": "Start",
     "stop": "Stop",
-    "restart": "Restart"
+    "restart": "Restart",
+    "refresh": "Refresh",
+    "running": "Running",
+    "stopped": "Stopped",
+    "clearLog": "Clear Log",
+    "filterPlaceholder": "Filter log content",
+    "allLevels": "All Levels",
+    "noLogs": "No logs yet."
   },
   "models": {
     "title": "Models & Keys",
+    "subtitle": "Configure MCP Provider model lists and API Keys.",
     "provider": "Provider",
     "apiKey": "API Key",
     "configure": "Configure",
-    "save": "Save"
+    "save": "Save Configuration",
+    "saving": "Saving...",
+    "saved": "Saved",
+    "privacy": {
+      "warningTitle": "Privacy Risk Warning",
+      "cloudWarning": "When using these services for AI analysis, your transcript text will be uploaded to third-party servers.",
+      "cloudLabel": "Cloud Services (OpenAI/Claude/DeepSeek/Doubao)",
+      "localWarning": "Requires self-deployed Ollama or other local LLM services. Data stays on device, but performance and quality are limited.",
+      "localLabel": "Local Services (Local)",
+      "importantNote": "Only use cloud services for non-sensitive content",
+      "detailNote": "Legal, medical, and confidential business content should avoid cloud AI analysis, or use local LLM only. Transcription always runs locally and is not affected."
+    },
+    "local": "Local",
+    "cloud": "Cloud",
+    "modelList": "Model List",
+    "modelPlaceholder": "Comma-separated",
+    "noApiKeyNeeded": "This Provider does not require an API Key."
   },
   "settings": {
     "title": "Settings",
+    "subtitle": "Control playback, search, and other feature behaviors.",
     "general": "General",
     "language": "Language",
     "theme": "Theme",
     "transcription": "Transcription",
     "model": "Whisper Model",
-    "device": "Device"
+    "device": "Device",
+    "playback": {
+      "title": "Playback Settings",
+      "speed": "Playback Speed",
+      "autoPlay": "Auto-play on Segment Click",
+      "autoPlayDesc": "Start playing immediately after jumping to a timeline position",
+      "loopSegment": "Loop Current Segment",
+      "loopSegmentDesc": "Automatically replay when the segment ends"
+    },
+    "search": {
+      "title": "Search Settings",
+      "loading": "Loading...",
+      "semanticSearch": "Semantic Search",
+      "semanticDesc": "Understands synonyms and related concepts for smarter search. Requires a local embedding model (auto-downloads on first use).",
+      "semanticUnavailable": "Semantic search dependencies are not installed. Contact the developer or check the docs.",
+      "semanticEnabled": "Semantic search enabled",
+      "semanticDisabled": "Switched to full-text search",
+      "semanticFailed": "Setting failed, please retry",
+      "statusEnabled": "Current: Semantic search enabled. Use hybrid retrieval on the AI Search page.",
+      "statusDisabled": "Current: Full-text search mode (exact keyword matching)."
+    }
+  },
+  "aiSearch": {
+    "title": "Smart Search",
+    "ragEnabled": "Semantic search enabled",
+    "ragDisabled": "Full-text search only",
+    "syncing": "Syncing...",
+    "syncVectorDb": "Sync Vector DB",
+    "syncComplete": "Sync complete!\nTranscripts processed: {{transcripts}}\nSegments indexed: {{segments}}",
+    "syncFailed": "Sync failed: ",
+    "searchFailed": "Search failed: ",
+    "fullTextMode": {
+      "title": "Currently using full-text search mode",
+      "desc": "Full-text search matches keywords precisely and works for most scenarios. To enable semantic search (understanding synonyms and related concepts), go to",
+      "settingsLink": "Settings → Search Settings",
+      "switchSuffix": "and enable the \"Semantic Search\" toggle."
+    },
+    "search": {
+      "titleSmart": "Smart Search",
+      "titleFulltext": "Full-Text Search",
+      "placeholderSmart": "Enter search content (supports semantic understanding)...",
+      "placeholderFulltext": "Enter keywords to search...",
+      "keyword": "Keyword Search",
+      "hybrid": "Hybrid Search (Recommended)",
+      "semantic": "Semantic Search",
+      "searching": "Searching...",
+      "searchButton": "Search",
+      "resultCount": "Search Results ({{count}})",
+      "fullTextSource": "Full-text search",
+      "similarity": "Similarity: {{score}}"
+    },
+    "agent": {
+      "title": "AI Assistant",
+      "requireLLM": "Requires LLM API configuration",
+      "placeholder": "Ask the AI assistant (e.g.: Find all clips about product design and suggest how to edit them into a short video)",
+      "searchAssistant": "Search Assistant",
+      "clipAssistant": "Clip Suggestion Assistant",
+      "thinking": "AI thinking...",
+      "send": "Send",
+      "response": "AI Assistant Response:",
+      "noResponse": "No response",
+      "queryFailed": "Query failed: "
+    }
+  },
+  "transcriptDetail": {
+    "notFound": "Transcript not found.",
+    "language": "Language: {{lang}}",
+    "searchPlaceholder": "Search text content",
+    "fullText": "Full Text",
+    "summary": {
+      "title": "Summary",
+      "provider": "Provider",
+      "model": "Model",
+      "prompt": "Prompt",
+      "custom": "Custom",
+      "customPlaceholder": "Enter model name",
+      "promptSummary": "Summary",
+      "promptOutline": "Outline",
+      "promptActionItems": "Action Items",
+      "generating": "Generating...",
+      "generate": "Generate Summary",
+      "empty": "No summary yet."
+    },
+    "timeline": {
+      "title": "Timeline",
+      "clickToJump": "Click a segment to jump to it. Current playback time: {{time}}",
+      "noMedia": "Media file path not found.",
+      "prevSegment": "Previous",
+      "nextSegment": "Next",
+      "followPlayback": "Follow Playback",
+      "writeSubtitle": "Write Subtitles (.srt)",
+      "writingSubtitle": "Writing...",
+      "subtitleSuccess": "Subtitles written: {{path}}",
+      "subtitleFailed": "Subtitle writing failed",
+      "noSegments": "No segment data available."
+    }
   },
   "common": {
     "save": "Save",

@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import List, Dict, Any
 
 try:
-from langchain_openai import ChatOpenAI
+    from langchain_openai import ChatOpenAI
     LLM_AVAILABLE = True
 except ImportError:
     LLM_AVAILABLE = False
@@ -33,14 +33,14 @@ class VideoSearchAgent:
     ):
         self.db_path = db_path
         self.retriever = get_retriever(db_path)
-        
+
         # 初始化 LLM（如果可用）
         if LLM_AVAILABLE:
-        self.llm = ChatOpenAI(
-            model=model,
-            api_key=api_key or os.getenv("OPENAI_API_KEY"),
-            temperature=0,
-        )
+            self.llm = ChatOpenAI(
+                model=model,
+                api_key=api_key or os.getenv("OPENAI_API_KEY"),
+                temperature=0,
+            )
         else:
             self.llm = None
 
@@ -49,10 +49,10 @@ class VideoSearchAgent:
         try:
             # 1. 使用混合检索获取结果
             results = self.retriever.search(query, mode="hybrid", limit=5)
-            
+
             if not results:
                 return "未找到相关内容"
-            
+
             # 2. 格式化结果
             output = []
             for i, r in enumerate(results, 1):
@@ -61,9 +61,9 @@ class VideoSearchAgent:
                     f"   {r['text']}\n"
                     f"   (相关度: {r['score']:.3f})"
                 )
-            
+
             formatted_results = "\n\n".join(output)
-            
+
             # 3. 如果有 LLM，生成更智能的回答
             if self.llm:
                 try:
@@ -86,7 +86,7 @@ class VideoSearchAgent:
                     return f"搜索结果：\n\n{formatted_results}"
             else:
                 return f"搜索结果：\n\n{formatted_results}"
-                
+
         except Exception as e:
             return f"搜索出错：{str(e)}"
 
@@ -96,28 +96,28 @@ class ClipExtractorAgent:
 
     def __init__(self, model: str = "gpt-4o-mini", api_key: str | None = None):
         if LLM_AVAILABLE:
-        self.llm = ChatOpenAI(
-            model=model,
-            api_key=api_key or os.getenv("OPENAI_API_KEY"),
-            temperature=0.3,
-        )
+            self.llm = ChatOpenAI(
+                model=model,
+                api_key=api_key or os.getenv("OPENAI_API_KEY"),
+                temperature=0.3,
+            )
         else:
             self.llm = None
 
     def suggest_clips(self, search_results: List[Dict[str, Any]], theme: str) -> str:
         """
         基于搜索结果，建议如何剪辑片段
-        
+
         Args:
             search_results: 搜索到的视频片段列表
             theme: 主题（如"AI创业"、"产品设计"）
-        
+
         Returns:
             剪辑建议
         """
         if not search_results:
             return "没有可用的片段"
-        
+
         if not self.llm:
             # 没有 LLM，返回简单的列表
             clips_text = "\n".join([
@@ -125,13 +125,13 @@ class ClipExtractorAgent:
                 for r in search_results
             ])
             return f"找到以下片段：\n{clips_text}"
-        
+
         # 构建 prompt
         clips_text = "\n".join([
             f"- [{r['filename']}] {r['start']:.1f}s-{r['end']:.1f}s: {r['text']}"
             for r in search_results
         ])
-        
+
         prompt = f"""你是一个短视频剪辑顾问。以下是关于"{theme}"主题的视频片段：
 
 {clips_text}
@@ -145,8 +145,8 @@ class ClipExtractorAgent:
 请以清晰的列表形式回答。"""
 
         try:
-        response = self.llm.invoke(prompt)
-        return response.content
+            response = self.llm.invoke(prompt)
+            return response.content
         except Exception as e:
             return f"生成建议失败：{str(e)}\n\n原始片段列表：\n{clips_text}"
 

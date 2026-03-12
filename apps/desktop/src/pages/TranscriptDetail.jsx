@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Search } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import api from "../lib/api";
 import {
   DEFAULT_PREFERENCES,
@@ -22,6 +23,7 @@ const formatTime = (seconds) => {
 };
 
 function TranscriptDetail() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const [transcript, setTranscript] = useState(null);
@@ -209,7 +211,7 @@ function TranscriptDetail() {
   }
 
   if (!transcript) {
-    return <div className="empty-state">未找到转录文本。</div>;
+    return <div className="empty-state">{t('transcriptDetail.notFound')}</div>;
   }
 
   const mediaSrc = transcript.media_path
@@ -246,9 +248,9 @@ function TranscriptDetail() {
       setSubtitleStatus(null);
       const response = await api.post(`/transcripts/${id}/write-subtitle`);
       const path = response.data?.srt_path || "";
-      setSubtitleStatus({ ok: true, message: `字幕已写入: ${path}` });
+      setSubtitleStatus({ ok: true, message: t('transcriptDetail.timeline.subtitleSuccess', { path }) });
     } catch (error) {
-      setSubtitleStatus({ ok: false, message: "字幕写入失败" });
+      setSubtitleStatus({ ok: false, message: t('transcriptDetail.timeline.subtitleFailed') });
       console.error("Failed to write subtitle:", error);
     } finally {
       setSubtitleWriting(false);
@@ -284,7 +286,7 @@ function TranscriptDetail() {
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{transcript.filename}</h1>
-          <p className="text-sm text-gray-500">语言: {transcript.language || "-"}</p>
+          <p className="text-sm text-gray-500">{t('transcriptDetail.language', { lang: transcript.language || "-" })}</p>
         </div>
       </div>
 
@@ -292,7 +294,7 @@ function TranscriptDetail() {
         <Search className="form-search-icon" />
         <input
           className="form-search-input"
-          placeholder="搜索文本内容"
+          placeholder={t('transcriptDetail.searchPlaceholder')}
           value={searchTerm}
           onChange={(event) => setSearchTerm(event.target.value)}
         />
@@ -300,18 +302,18 @@ function TranscriptDetail() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[2fr,1fr] gap-6">
         <div className="card">
-          <h2 className="text-lg font-semibold text-gray-900">全文</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{t('transcriptDetail.fullText')}</h2>
           <div className="mt-4 text-sm text-gray-700 whitespace-pre-wrap leading-7">
             {highlighted}
           </div>
         </div>
 
         <div className="card">
-          <h2 className="text-lg font-semibold text-gray-900">摘要</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{t('transcriptDetail.summary.title')}</h2>
           <div className="mt-4 space-y-3">
             <div className="grid grid-cols-1 gap-3">
               <div>
-                <label className="text-sm font-medium text-gray-700">Provider</label>
+                <label className="text-sm font-medium text-gray-700">{t('transcriptDetail.summary.provider')}</label>
                 <select
                   className="form-input"
                   value={provider}
@@ -325,7 +327,7 @@ function TranscriptDetail() {
                 </select>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700">Model</label>
+                <label className="text-sm font-medium text-gray-700">{t('transcriptDetail.summary.model')}</label>
                 <select
                   className="form-input"
                   value={model}
@@ -336,27 +338,27 @@ function TranscriptDetail() {
                       {option}
                     </option>
                   ))}
-                  <option value="custom">自定义</option>
+                  <option value="custom">{t('transcriptDetail.summary.custom')}</option>
                 </select>
                 {model === "custom" ? (
                   <input
                     className="form-input mt-2"
                     value={customModel}
                     onChange={(event) => setCustomModel(event.target.value)}
-                    placeholder="输入模型名称"
+                    placeholder={t('transcriptDetail.summary.customPlaceholder')}
                   />
                 ) : null}
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700">Prompt</label>
+                <label className="text-sm font-medium text-gray-700">{t('transcriptDetail.summary.prompt')}</label>
                 <select
                   className="form-input"
                   value={promptType}
                   onChange={(event) => setPromptType(event.target.value)}
                 >
-                  <option value="summary">摘要</option>
-                  <option value="outline">提纲</option>
-                  <option value="action_items">行动项</option>
+                  <option value="summary">{t('transcriptDetail.summary.promptSummary')}</option>
+                  <option value="outline">{t('transcriptDetail.summary.promptOutline')}</option>
+                  <option value="action_items">{t('transcriptDetail.summary.promptActionItems')}</option>
                 </select>
               </div>
             </div>
@@ -366,25 +368,25 @@ function TranscriptDetail() {
               onClick={runSummary}
               disabled={summarizing || (model === "custom" && !customModel.trim())}
             >
-              {summarizing ? "生成中..." : "生成摘要"}
+              {summarizing ? t('transcriptDetail.summary.generating') : t('transcriptDetail.summary.generate')}
             </button>
             <div className="text-sm text-gray-700 whitespace-pre-wrap min-h-[120px]">
-              {summary || "还没有摘要。"}
+              {summary || t('transcriptDetail.summary.empty')}
             </div>
           </div>
         </div>
 
         <div className="card lg:col-span-2">
-          <h2 className="text-lg font-semibold text-gray-900">时间轴</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{t('transcriptDetail.timeline.title')}</h2>
           {mediaSrc ? (
             <div className="mt-4">
               <audio ref={audioRef} src={mediaSrc} controls className="w-full" />
               <p className="mt-2 text-xs text-gray-500">
-                点击分段可跳转播放。当前播放时间：{formatTime(currentTime)}
+                {t('transcriptDetail.timeline.clickToJump', { time: formatTime(currentTime) })}
               </p>
             </div>
           ) : (
-            <p className="mt-4 text-sm text-gray-500">未找到媒体文件路径。</p>
+            <p className="mt-4 text-sm text-gray-500">{t('transcriptDetail.timeline.noMedia')}</p>
           )}
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
@@ -392,14 +394,14 @@ function TranscriptDetail() {
               className="btn btn-secondary"
               onClick={() => jumpSegment("prev")}
             >
-              上一段
+              {t('transcriptDetail.timeline.prevSegment')}
             </button>
             <button
               type="button"
               className="btn btn-secondary"
               onClick={() => jumpSegment("next")}
             >
-              下一段
+              {t('transcriptDetail.timeline.nextSegment')}
             </button>
             <label className="flex items-center gap-2 text-sm text-gray-600">
               <input
@@ -407,7 +409,7 @@ function TranscriptDetail() {
                 checked={followPlayback}
                 onChange={(event) => setFollowPlayback(event.target.checked)}
               />
-              跟随播放
+              {t('transcriptDetail.timeline.followPlayback')}
             </label>
             {mediaSrc ? (
               <button
@@ -416,7 +418,7 @@ function TranscriptDetail() {
                 onClick={writeSubtitle}
                 disabled={subtitleWriting}
               >
-                {subtitleWriting ? "写入中..." : "写入字幕 (.srt)"}
+                {subtitleWriting ? t('transcriptDetail.timeline.writingSubtitle') : t('transcriptDetail.timeline.writeSubtitle')}
               </button>
             ) : null}
           </div>
@@ -459,7 +461,7 @@ function TranscriptDetail() {
                 </button>
               ))
             ) : (
-              <p className="text-sm text-gray-500">暂无分段信息。</p>
+              <p className="text-sm text-gray-500">{t('transcriptDetail.timeline.noSegments')}</p>
             )}
           </div>
         </div>

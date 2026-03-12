@@ -8,9 +8,11 @@ import {
   RefreshCw,
   Search
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import api from "../lib/api";
 
 function Resources() {
+  const { t } = useTranslation();
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -57,11 +59,11 @@ function Resources() {
       setImporting(true);
       const response = await api.post("/media/import", { paths });
       const created = response.data?.created?.length || 0;
-      setMessage(`已导入 ${created} 个文件`);
+      setMessage(t('resources.importSuccess', { count: created }));
       loadResources();
     } catch (error) {
       console.error("Failed to import:", error);
-      setMessage("导入失败，请检查 Core 服务是否运行。");
+      setMessage(t('resources.importError'));
     } finally {
       setImporting(false);
     }
@@ -89,9 +91,9 @@ function Resources() {
     <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">资源管理</h1>
+          <h1 className="text-3xl font-bold text-gray-900">{t('resources.title')}</h1>
           <p className="mt-2 text-gray-600">
-            导入本地音视频文件，为转写任务做准备。
+            {t('resources.subtitle')}
           </p>
         </div>
         <div className="flex gap-3">
@@ -101,7 +103,7 @@ function Resources() {
             onClick={loadResources}
           >
             <RefreshCw className="w-4 h-4" />
-            刷新
+            {t('resources.refresh')}
           </button>
           <button
             type="button"
@@ -110,7 +112,7 @@ function Resources() {
             disabled={importing}
           >
             <FolderPlus className="w-4 h-4" />
-            {importing ? "导入中..." : "导入文件"}
+            {importing ? t('resources.importing') : t('resources.importFile')}
           </button>
         </div>
       </div>
@@ -119,7 +121,7 @@ function Resources() {
         <Search className="form-search-icon" />
         <input
           className="form-search-input"
-          placeholder="搜索文件名"
+          placeholder={t('resources.searchPlaceholder')}
           value={searchTerm}
           onChange={(event) => setSearchTerm(event.target.value)}
         />
@@ -132,9 +134,9 @@ function Resources() {
           <table className="table">
             <thead>
               <tr>
-                <th>文件名</th>
-                <th>类型</th>
-                <th>路径</th>
+                <th>{t('resources.table.filename')}</th>
+                <th>{t('resources.table.type')}</th>
+                <th>{t('resources.table.path')}</th>
               </tr>
             </thead>
             <tbody>
@@ -154,8 +156,8 @@ function Resources() {
           </table>
           {filteredResources.length === 0 ? (
             <div className="empty-state">
-              <p className="empty-state-title">暂无资源</p>
-              <p className="empty-state-text">点击右上角导入你的第一个文件。</p>
+              <p className="empty-state-title">{t('resources.empty.title')}</p>
+              <p className="empty-state-text">{t('resources.empty.text')}</p>
             </div>
           ) : null}
         </div>

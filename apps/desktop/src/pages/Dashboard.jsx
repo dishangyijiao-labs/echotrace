@@ -7,6 +7,7 @@ import {
   Upload, Search, CheckCircle, Loader2, AlertCircle,
   ArrowRight, Download, Play
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import api from "../lib/api";
 import { useNavigate } from "react-router-dom";
 
@@ -18,6 +19,7 @@ function isMediaFile(path) {
 }
 
 function Dashboard() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [stats, setStats] = useState({ mediaCount: 0, transcriptCount: 0, activeJobs: 0, doneJobs: 0 });
   const [activeJobs, setActiveJobs] = useState([]);
@@ -100,10 +102,10 @@ function Dashboard() {
     try {
       const res = await api.post("/media/import", { paths });
       const created = res.data?.created?.length || 0;
-      setImportMsg({ type: "success", text: `已导入 ${created} 个文件，前往任务队列开始转写` });
+      setImportMsg({ type: "success", text: t('dashboard.import.successMessage', { count: created }) });
       loadData(false);
     } catch {
-      setImportMsg({ type: "error", text: "导入失败，请检查 Core 服务是否运行" });
+      setImportMsg({ type: "error", text: t('dashboard.import.errorMessage') });
     } finally {
       setImporting(false);
     }
@@ -131,8 +133,8 @@ function Dashboard() {
 
   const queueSummary = useMemo(() => {
     if (stats.activeJobs === 0) return null;
-    return `${stats.activeJobs} 个文件转写中`;
-  }, [stats.activeJobs]);
+    return t('dashboard.queue.summary', { count: stats.activeJobs });
+  }, [stats.activeJobs, t]);
 
   if (loading) {
     return (
@@ -146,13 +148,13 @@ function Dashboard() {
     <div className="space-y-5">
       {/* Hero search */}
       <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-8 text-white">
-        <h1 className="text-4xl font-bold mb-2">找到任何时刻</h1>
-        <p className="text-blue-100 mb-5 text-base">搜索所有视频素材，10 秒定位精确片段</p>
+        <h1 className="text-4xl font-bold mb-2">{t('dashboard.hero.title')}</h1>
+        <p className="text-blue-100 mb-5 text-base">{t('dashboard.hero.subtitle')}</p>
         <div className="bg-white rounded-xl p-2 flex items-center gap-2 shadow-lg">
           <Search className="w-5 h-5 text-gray-400 ml-2 shrink-0" />
           <input
             type="text"
-            placeholder='搜索关键词，例如："产品发布"、"张三访谈"...'
+            placeholder={t('dashboard.hero.searchPlaceholder')}
             className="flex-1 px-3 py-2.5 text-gray-900 bg-transparent focus:outline-none text-base"
             value={quickSearch}
             onChange={(e) => setQuickSearch(e.target.value)}
@@ -169,24 +171,24 @@ function Dashboard() {
                 navigate(`/results?q=${encodeURIComponent(quickSearch.trim())}`);
             }}
           >
-            搜索
+            {t('dashboard.hero.searchButton')}
           </button>
         </div>
         <div className="mt-5 grid grid-cols-3 gap-3 text-center">
           <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
             <div className="text-2xl font-bold">{stats.mediaCount}</div>
-            <div className="text-xs text-blue-100 mt-0.5">视频素材</div>
+            <div className="text-xs text-blue-100 mt-0.5">{t('dashboard.stats.mediaCount')}</div>
           </div>
           <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
             <div className="text-2xl font-bold">{stats.transcriptCount}</div>
-            <div className="text-xs text-blue-100 mt-0.5">可搜索内容</div>
+            <div className="text-xs text-blue-100 mt-0.5">{t('dashboard.stats.searchableContent')}</div>
           </div>
           <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
             <div className="text-2xl font-bold">
               {stats.activeJobs > 0 ? stats.activeJobs : <CheckCircle className="w-6 h-6 mx-auto" />}
             </div>
             <div className="text-xs text-blue-100 mt-0.5">
-              {stats.activeJobs > 0 ? "转写中" : "队列空闲"}
+              {stats.activeJobs > 0 ? t('dashboard.stats.transcribing') : t('dashboard.stats.queueIdle')}
             </div>
           </div>
         </div>
@@ -203,7 +205,7 @@ function Dashboard() {
               className="ml-auto text-xs text-blue-600 hover:underline"
               onClick={() => navigate("/tasks")}
             >
-              查看详情 →
+              {t('dashboard.queue.viewDetails')}
             </button>
           </div>
           {activeJobs.map((job) => {
@@ -211,8 +213,8 @@ function Dashboard() {
             return (
               <div key={job.id} className="space-y-1">
                 <div className="flex items-center justify-between text-xs text-blue-700">
-                  <span>任务 #{job.id} · {job.model}</span>
-                  <span>{job.status === "queued" ? "排队中" : `${pct}%`}</span>
+                  <span>{t('dashboard.queue.taskLabel', { id: job.id, model: job.model })}</span>
+                  <span>{job.status === "queued" ? t('dashboard.queue.queued') : `${pct}%`}</span>
                 </div>
                 <div className="w-full bg-blue-200 rounded-full h-1.5">
                   <div
@@ -263,15 +265,15 @@ function Dashboard() {
         {importing ? (
           <div className="flex flex-col items-center gap-2 text-blue-500">
             <Loader2 className="w-8 h-8 animate-spin" />
-            <span className="text-sm">导入中...</span>
+            <span className="text-sm">{t('dashboard.import.importing')}</span>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2 text-gray-400">
             <Upload className={`w-8 h-8 ${dragOver ? "text-blue-400" : ""}`} />
             <p className="text-sm font-medium text-gray-600">
-              {dragOver ? "松开鼠标导入文件" : "拖拽文件到这里，或点击选择"}
+              {dragOver ? t('dashboard.import.dropHere') : t('dashboard.import.dragOrClick')}
             </p>
-            <p className="text-xs text-gray-400">支持 MP4、MOV、MKV、MP3、WAV、M4A 等格式</p>
+            <p className="text-xs text-gray-400">{t('dashboard.import.supportedFormats')}</p>
           </div>
         )}
       </div>
@@ -293,7 +295,7 @@ function Dashboard() {
               className="ml-auto text-xs font-medium underline"
               onClick={() => navigate("/tasks")}
             >
-              去任务队列
+              {t('dashboard.import.goToQueue')}
             </button>
           )}
         </div>
@@ -304,22 +306,22 @@ function Dashboard() {
         <div className="card border-blue-200 bg-blue-50/50 flex items-center gap-4">
           <Folder className="w-8 h-8 text-blue-500 shrink-0" />
           <div>
-            <p className="text-xs text-gray-500">资源文件</p>
+            <p className="text-xs text-gray-500">{t('dashboard.statsCards.resourceFiles')}</p>
             <p className="text-2xl font-semibold text-gray-900">{stats.mediaCount}</p>
           </div>
         </div>
         <div className="card border-emerald-200 bg-emerald-50/50 flex items-center gap-4">
           <FileText className="w-8 h-8 text-emerald-500 shrink-0" />
           <div>
-            <p className="text-xs text-gray-500">转录结果</p>
+            <p className="text-xs text-gray-500">{t('dashboard.statsCards.transcriptionResults')}</p>
             <p className="text-2xl font-semibold text-gray-900">{stats.transcriptCount}</p>
           </div>
         </div>
         <div className="card border-gray-200 bg-gray-50/50 flex items-center gap-4">
           <Shield className="w-6 h-6 text-gray-400 shrink-0" />
           <div>
-            <p className="text-xs text-gray-500">隐私保护</p>
-            <p className="text-sm font-medium text-gray-700">100% 本地处理</p>
+            <p className="text-xs text-gray-500">{t('dashboard.statsCards.privacyProtection')}</p>
+            <p className="text-sm font-medium text-gray-700">{t('dashboard.statsCards.localProcessing')}</p>
           </div>
           <HardDrive className="w-5 h-5 text-gray-300 ml-auto shrink-0" />
         </div>
@@ -327,7 +329,7 @@ function Dashboard() {
 
       {/* Services */}
       <div className="card space-y-3">
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">本地服务</h2>
+        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">{t('dashboard.services.title')}</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {[
             { key: "core", label: "Core API", running: services.core_running, start: "start_core", stop: "stop_core" },
@@ -337,14 +339,14 @@ function Dashboard() {
               <div className="flex items-center gap-2">
                 <span className={`w-2 h-2 rounded-full ${svc.running ? "bg-green-400" : "bg-gray-300"}`} />
                 <span className="text-sm text-gray-700">{svc.label}</span>
-                <span className="text-xs text-gray-400">{svc.running ? "运行中" : "已停止"}</span>
+                <span className="text-xs text-gray-400">{svc.running ? t('dashboard.services.running') : t('dashboard.services.stopped')}</span>
               </div>
               <button
                 type="button"
                 className="btn btn-secondary text-xs py-1 px-3"
                 onClick={() => controlService(svc.running ? svc.stop : svc.start)}
               >
-                {svc.running ? "停止" : "启动"}
+                {svc.running ? t('dashboard.services.stop') : t('dashboard.services.start')}
               </button>
             </div>
           ))}
@@ -355,27 +357,28 @@ function Dashboard() {
 }
 
 function OnboardingGuide({ modelReady, hasMedia, hasTranscript, onDismiss, onImport, onNavigate }) {
+  const { t } = useTranslation();
   const steps = [
     {
       num: 1,
-      label: "下载转写模型",
-      desc: "选择 small 模型（推荐），下载后即可开始使用",
+      label: t('dashboard.onboarding.step1.label'),
+      desc: t('dashboard.onboarding.step1.desc'),
       done: modelReady,
-      action: { label: "去下载", icon: Download, fn: () => onNavigate("/models") },
+      action: { label: t('dashboard.onboarding.step1.action'), icon: Download, fn: () => onNavigate("/models") },
     },
     {
       num: 2,
-      label: "导入音视频文件",
-      desc: "支持 MP4、MOV、MKV、MP3、WAV 等格式，可批量导入",
+      label: t('dashboard.onboarding.step2.label'),
+      desc: t('dashboard.onboarding.step2.desc'),
       done: hasMedia,
-      action: { label: "导入文件", icon: Upload, fn: onImport },
+      action: { label: t('dashboard.onboarding.step2.action'), icon: Upload, fn: onImport },
     },
     {
       num: 3,
-      label: "开始转写并搜索",
-      desc: "创建转写任务，完成后全文可搜索",
+      label: t('dashboard.onboarding.step3.label'),
+      desc: t('dashboard.onboarding.step3.desc'),
       done: hasTranscript,
-      action: { label: "去任务队列", icon: Play, fn: () => onNavigate("/tasks") },
+      action: { label: t('dashboard.onboarding.step3.action'), icon: Play, fn: () => onNavigate("/tasks") },
     },
   ];
 
@@ -386,17 +389,17 @@ function OnboardingGuide({ modelReady, hasMedia, hasTranscript, onDismiss, onImp
     <div className="card border-indigo-100 bg-gradient-to-br from-indigo-50 to-white space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-base font-semibold text-gray-900">快速上手 EchoTrace</h2>
-          <p className="text-xs text-gray-500 mt-0.5">完成 3 步即可搜索所有视频内容</p>
+          <h2 className="text-base font-semibold text-gray-900">{t('dashboard.onboarding.title')}</h2>
+          <p className="text-xs text-gray-500 mt-0.5">{t('dashboard.onboarding.subtitle')}</p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-indigo-600 font-medium">{doneCount} / 3 完成</span>
+          <span className="text-xs text-indigo-600 font-medium">{t('dashboard.onboarding.progress', { done: doneCount })}</span>
           <button
             type="button"
             className="text-xs text-gray-400 hover:text-gray-600"
             onClick={onDismiss}
           >
-            不再显示
+            {t('dashboard.onboarding.dismiss')}
           </button>
         </div>
       </div>

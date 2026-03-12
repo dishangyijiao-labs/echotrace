@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Download, RefreshCw, Search, SlidersHorizontal, X } from "lucide-react";
+import { Download, RefreshCw, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
+import { ask } from "@tauri-apps/plugin-dialog";
+import { useTranslation } from "react-i18next";
 import api from "../lib/api";
 
 function downloadBlob(filename, content) {
@@ -43,6 +45,7 @@ function activeFilterCount(filters) {
 }
 
 function Results() {
+  const { t } = useTranslation();
   const [results, setResults] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
   const [searchTotal, setSearchTotal] = useState(0);
@@ -154,6 +157,37 @@ function Results() {
     }
   };
 
+  const deleteTranscript = async (item) => {
+    const confirmed = await ask(t('results.delete.confirmMessage', { filename: item.filename }), {
+      title: t('results.delete.confirmTitle'),
+      kind: "warning",
+    });
+    if (!confirmed) return;
+    try {
+      await api.delete(`/transcripts/${item.id}`);
+      setSelectedIds((prev) => { const next = new Set(prev); next.delete(item.id); return next; });
+      loadResults();
+    } catch (error) {
+      console.error("Delete failed:", error);
+    }
+  };
+
+  const batchDelete = async () => {
+    if (selectedIds.size === 0) return;
+    const confirmed = await ask(t('results.delete.batchConfirmMessage', { count: selectedIds.size }), {
+      title: t('results.delete.batchConfirmTitle'),
+      kind: "warning",
+    });
+    if (!confirmed) return;
+    try {
+      await Promise.all([...selectedIds].map((id) => api.delete(`/transcripts/${id}`)));
+      setSelectedIds(new Set());
+      loadResults();
+    } catch (error) {
+      console.error("Batch delete failed:", error);
+    }
+  };
+
   const toggleSelect = (id) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -220,12 +254,12 @@ function Results() {
     <div className="space-y-4">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">转录结果</h1>
-          <p className="mt-1 text-gray-500 text-sm">搜索关键词并跳转到对应时间轴。</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t('results.title')}</h1>
+          <p className="mt-1 text-gray-500 text-sm">{t('results.subtitle')}</p>
         </div>
         <button type="button" className="btn btn-secondary" onClick={loadResults}>
           <RefreshCw className="w-4 h-4" />
-          刷新
+          {t('results.refresh')}
         </button>
       </div>
 
@@ -236,7 +270,7 @@ function Results() {
             <Search className="form-search-icon" />
             <input
               className="form-search-input"
-              placeholder="搜索关键词（跨全库）"
+              placeholder={t('results.searchPlaceholder')}
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -251,7 +285,7 @@ function Results() {
             onClick={() => setShowFilters((v) => !v)}
           >
             <SlidersHorizontal className="w-4 h-4" />
-            筛选
+            {t('results.filter')}
             {filterCount > 0 && (
               <span className="bg-white text-blue-600 text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center">
                 {filterCount}
@@ -266,7 +300,7 @@ function Results() {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {/* Date range */}
               <div>
-                <label className="text-xs font-medium text-gray-500 mb-1 block">开始日期</label>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">{t('results.filters.dateFrom')}</label>
                 <input
                   type="date"
                   className="form-input text-sm"
@@ -275,7 +309,7 @@ function Results() {
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-500 mb-1 block">结束日期</label>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">{t('results.filters.dateTo')}</label>
                 <input
                   type="date"
                   className="form-input text-sm"
@@ -286,21 +320,21 @@ function Results() {
 
               {/* File type */}
               <div>
-                <label className="text-xs font-medium text-gray-500 mb-1 block">文件类型</label>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">{t('results.filters.fileType')}</label>
                 <select
                   className="form-input text-sm"
                   value={filters.file_type}
                   onChange={(e) => setFilter("file_type", e.target.value)}
                 >
-                  <option value="">全部</option>
-                  <option value="video">视频</option>
-                  <option value="audio">音频</option>
+                  <option value="">{t('results.filters.all')}</option>
+                  <option value="video">{t('results.filters.video')}</option>
+                  <option value="audio">{t('results.filters.audio')}</option>
                 </select>
               </div>
 
               {/* Duration */}
               <div>
-                <label className="text-xs font-medium text-gray-500 mb-1 block">最短时长（秒）</label>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">{t('results.filters.durationMin')}</label>
                 <input
                   type="number"
                   min="0"
@@ -311,11 +345,11 @@ function Results() {
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-500 mb-1 block">最长时长（秒）</label>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">{t('results.filters.durationMax')}</label>
                 <input
                   type="number"
                   min="0"
-                  placeholder="不限"
+                  placeholder={t('results.filters.durationMaxPlaceholder')}
                   className="form-input text-sm"
                   value={filters.duration_max}
                   onChange={(e) => setFilter("duration_max", e.target.value)}
@@ -324,10 +358,10 @@ function Results() {
 
               {/* Language */}
               <div>
-                <label className="text-xs font-medium text-gray-500 mb-1 block">语言代码</label>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">{t('results.filters.languageCode')}</label>
                 <input
                   type="text"
-                  placeholder="如 zh、en、ja"
+                  placeholder={t('results.filters.languagePlaceholder')}
                   className="form-input text-sm"
                   value={filters.language}
                   onChange={(e) => setFilter("language", e.target.value)}
@@ -337,11 +371,11 @@ function Results() {
 
             {/* Sort */}
             <div className="flex items-center gap-4 pt-1 border-t border-blue-100">
-              <span className="text-xs font-medium text-gray-500">排序方式</span>
+              <span className="text-xs font-medium text-gray-500">{t('results.filters.sortBy')}</span>
               {[
-                { value: "relevance", label: "相关度" },
-                { value: "date", label: "时间" },
-                { value: "duration", label: "时长" },
+                { value: "relevance", label: t('results.filters.relevance') },
+                { value: "date", label: t('results.filters.date') },
+                { value: "duration", label: t('results.filters.duration') },
               ].map((opt) => (
                 <button
                   key={opt.value}
@@ -363,7 +397,7 @@ function Results() {
                   onClick={clearFilters}
                 >
                   <X className="w-3 h-3" />
-                  清除筛选
+                  {t('results.filters.clearFilters')}
                 </button>
               )}
             </div>
@@ -376,7 +410,7 @@ function Results() {
         <div className="card">
           <div className="table-wrapper">
             <div className="flex items-center justify-between px-4 pt-4 pb-2 text-sm text-gray-500">
-              <span>共 {searchTotal} 条，显示 {pageStart}–{pageEnd}</span>
+              <span>{t('results.searchResults.total', { total: searchTotal, start: pageStart, end: pageEnd })}</span>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -388,7 +422,7 @@ function Results() {
                   }}
                   disabled={searchOffset === 0}
                 >
-                  上一页
+                  {t('results.searchResults.prevPage')}
                 </button>
                 <span className="text-xs text-gray-400">{searchPage} / {totalPages}</span>
                 <button
@@ -402,17 +436,17 @@ function Results() {
                   }}
                   disabled={searchOffset + searchLimit >= searchTotal}
                 >
-                  下一页
+                  {t('results.searchResults.nextPage')}
                 </button>
               </div>
             </div>
             <table className="table">
               <thead>
                 <tr>
-                  <th>文件名</th>
-                  <th>片段</th>
-                  <th>时间</th>
-                  <th>操作</th>
+                  <th>{t('results.table.filename')}</th>
+                  <th>{t('results.table.segment')}</th>
+                  <th>{t('results.table.time')}</th>
+                  <th>{t('results.table.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -444,7 +478,7 @@ function Results() {
                           className="btn btn-secondary"
                           to={`/results/${item.transcript_id}?${linkParams}`}
                         >
-                          定位
+                          {t('results.searchResults.locate')}
                         </Link>
                       </td>
                     </tr>
@@ -454,12 +488,12 @@ function Results() {
             </table>
             {searchLoading ? (
               <div className="empty-state">
-                <p className="empty-state-title">搜索中...</p>
+                <p className="empty-state-title">{t('results.searchResults.searching')}</p>
               </div>
             ) : searchResults.length === 0 ? (
               <div className="empty-state">
-                <p className="empty-state-title">暂无匹配片段</p>
-                <p className="empty-state-text">换个关键词，或调整筛选条件试试。</p>
+                <p className="empty-state-title">{t('results.searchResults.noMatch')}</p>
+                <p className="empty-state-text">{t('results.searchResults.noMatchHint')}</p>
               </div>
             ) : null}
           </div>
@@ -469,7 +503,7 @@ function Results() {
         <div className="card">
           {selectedIds.size > 0 && (
             <div className="flex items-center gap-3 px-4 pt-4 pb-2">
-              <span className="text-sm text-gray-600">已选 {selectedIds.size} 项</span>
+              <span className="text-sm text-gray-600">{t('results.batch.selected', { count: selectedIds.size })}</span>
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -477,7 +511,7 @@ function Results() {
                 onClick={() => handleBatchExport("txt")}
               >
                 <Download className="w-4 h-4" />
-                批量导出 TXT
+                {t('results.batch.exportTxt')}
               </button>
               <button
                 type="button"
@@ -486,7 +520,15 @@ function Results() {
                 onClick={() => handleBatchExport("srt")}
               >
                 <Download className="w-4 h-4" />
-                批量导出 SRT
+                {t('results.batch.exportSrt')}
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary text-red-600 hover:bg-red-50"
+                onClick={batchDelete}
+              >
+                <Trash2 className="w-4 h-4" />
+                {t('results.batch.batchDelete')}
               </button>
             </div>
           )}
@@ -501,10 +543,10 @@ function Results() {
                       onChange={toggleSelectAll}
                     />
                   </th>
-                  <th>文件名</th>
-                  <th>摘要</th>
-                  <th>语言</th>
-                  <th>操作</th>
+                  <th>{t('results.table.filename')}</th>
+                  <th>{t('results.table.summary')}</th>
+                  <th>{t('results.table.language')}</th>
+                  <th>{t('results.table.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -526,9 +568,9 @@ function Results() {
                       </Link>
                     </td>
                     <td className="text-xs text-gray-500 max-w-xs truncate">
-                      {item.summary || "—"}
+                      {item.summary || "\u2014"}
                     </td>
-                    <td className="text-xs">{item.language || "—"}</td>
+                    <td className="text-xs">{item.language || "\u2014"}</td>
                     <td>
                       <div className="flex items-center gap-2">
                         <button
@@ -547,6 +589,14 @@ function Results() {
                           <Download className="w-4 h-4" />
                           SRT
                         </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary text-red-500 hover:bg-red-50"
+                          onClick={() => deleteTranscript(item)}
+                          title={t('results.delete.buttonTitle')}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -555,8 +605,8 @@ function Results() {
             </table>
             {filtered.length === 0 && (
               <div className="empty-state">
-                <p className="empty-state-title">暂无转录结果</p>
-                <p className="empty-state-text">完成转写任务后会出现在这里。</p>
+                <p className="empty-state-title">{t('results.empty.title')}</p>
+                <p className="empty-state-text">{t('results.empty.text')}</p>
               </div>
             )}
           </div>

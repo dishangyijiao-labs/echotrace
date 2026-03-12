@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { RefreshCw, Search, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 const LOG_TABS = [
   { key: "core", label: "Core" },
@@ -8,6 +9,7 @@ const LOG_TABS = [
 ];
 
 function Services() {
+  const { t } = useTranslation();
   const [status, setStatus] = useState({
     core_running: false,
     worker_running: false
@@ -100,24 +102,24 @@ function Services() {
     <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">服务与日志</h1>
-          <p className="mt-2 text-gray-600">管理本地 Core 与 Worker，并查看运行日志。</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t('services.title')}</h1>
+          <p className="mt-2 text-gray-600">{t('services.subtitle')}</p>
         </div>
         <button type="button" className="btn btn-secondary" onClick={() => {
           loadStatus();
           loadLogs();
         }}>
           <RefreshCw className="w-4 h-4" />
-          刷新
+          {t('services.refresh')}
         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="card flex items-center justify-between">
           <div>
-            <p className="text-sm text-gray-500">Core 服务</p>
+            <p className="text-sm text-gray-500">{t('services.core')}</p>
             <p className="text-lg font-semibold text-gray-900">
-              {status.core_running ? "运行中" : "已停止"}
+              {status.core_running ? t('services.running') : t('services.stopped')}
             </p>
           </div>
           <button
@@ -125,14 +127,14 @@ function Services() {
             className="btn btn-secondary"
             onClick={() => toggleService("core")}
           >
-            {status.core_running ? "停止" : "启动"}
+            {status.core_running ? t('services.stop') : t('services.start')}
           </button>
         </div>
         <div className="card flex items-center justify-between">
           <div>
-            <p className="text-sm text-gray-500">Worker</p>
+            <p className="text-sm text-gray-500">{t('services.worker')}</p>
             <p className="text-lg font-semibold text-gray-900">
-              {status.worker_running ? "运行中" : "已停止"}
+              {status.worker_running ? t('services.running') : t('services.stopped')}
             </p>
           </div>
           <button
@@ -140,7 +142,7 @@ function Services() {
             className="btn btn-secondary"
             onClick={() => toggleService("worker")}
           >
-            {status.worker_running ? "停止" : "启动"}
+            {status.worker_running ? t('services.stop') : t('services.start')}
           </button>
         </div>
       </div>
@@ -164,7 +166,7 @@ function Services() {
           </div>
           <button type="button" className="btn btn-secondary" onClick={clearLog}>
             <Trash2 className="w-4 h-4" />
-            清空日志
+            {t('services.clearLog')}
           </button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-[1fr,160px] gap-3">
@@ -172,7 +174,7 @@ function Services() {
             <Search className="form-search-icon" />
             <input
               className="form-search-input"
-              placeholder="过滤日志内容"
+              placeholder={t('services.filterPlaceholder')}
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
             />
@@ -182,7 +184,7 @@ function Services() {
             value={levelFilter}
             onChange={(event) => setLevelFilter(event.target.value)}
           >
-            <option value="all">全部级别</option>
+            <option value="all">{t('services.allLevels')}</option>
             <option value="info">INFO</option>
             <option value="warning">WARNING</option>
             <option value="error">ERROR</option>
@@ -190,7 +192,7 @@ function Services() {
           </select>
         </div>
         <div className="bg-gray-900 text-gray-100 rounded-xl p-4 text-xs leading-relaxed h-80 overflow-y-auto font-mono">
-          {filteredLogs.length ? filteredLogs.join("\n") : "暂无日志。"}
+          {filteredLogs.length ? filteredLogs.join("\n") : t('services.noLogs')}
         </div>
       </div>
     </div>
