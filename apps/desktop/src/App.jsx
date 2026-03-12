@@ -10,7 +10,7 @@ import TranscriptDetail from "./pages/TranscriptDetail";
 import Services from "./pages/Services";
 import Models from "./pages/Models";
 import Settings from "./pages/Settings";
-import AISearch from "./pages/AISearch";
+
 
 function App() {
   const [modelReady, setModelReady] = useState(null); // null = checking, false = need setup, true = ready
@@ -95,7 +95,7 @@ function App() {
           <Route path="tasks" element={<TaskQueue />} />
           <Route path="results" element={<Results />} />
           <Route path="results/:id" element={<TranscriptDetail />} />
-          <Route path="ai-search" element={<AISearch />} />
+
           <Route path="services" element={<Services />} />
           <Route path="models" element={<Models />} />
           <Route path="settings" element={<Settings />} />

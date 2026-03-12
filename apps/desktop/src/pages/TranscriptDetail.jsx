@@ -31,6 +31,7 @@ function TranscriptDetail() {
   const [searchTerm, setSearchTerm] = useState("");
   const [summary, setSummary] = useState("");
   const [summarizing, setSummarizing] = useState(false);
+  const [summaryError, setSummaryError] = useState("");
   const [provider, setProvider] = useState(DEFAULT_PREFERENCES.provider);
   const [model, setModel] = useState(DEFAULT_PREFERENCES.model);
   const [customModel, setCustomModel] = useState(DEFAULT_PREFERENCES.customModel);
@@ -261,6 +262,7 @@ function TranscriptDetail() {
     if (!transcript?.content) return;
     try {
       setSummarizing(true);
+      setSummaryError("");
       const modelName = model === "custom" ? customModel : model;
       const response = await api.post("/summarize", {
         provider,
@@ -273,6 +275,8 @@ function TranscriptDetail() {
       setSummary(response.data?.summary || "");
     } catch (error) {
       console.error("Failed to summarize:", error);
+      const detail = error.response?.data?.detail || error.response?.data?.message || error.message;
+      setSummaryError(t('transcriptDetail.summary.failed') + detail);
     } finally {
       setSummarizing(false);
     }
@@ -370,6 +374,11 @@ function TranscriptDetail() {
             >
               {summarizing ? t('transcriptDetail.summary.generating') : t('transcriptDetail.summary.generate')}
             </button>
+            {summaryError && (
+              <div className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
+                {summaryError}
+              </div>
+            )}
             <div className="text-sm text-gray-700 whitespace-pre-wrap min-h-[120px]">
               {summary || t('transcriptDetail.summary.empty')}
             </div>

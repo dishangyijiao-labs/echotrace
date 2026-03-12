@@ -143,10 +143,22 @@
       "noMatchHint": "Try a different keyword or adjust your filters.",
       "locate": "Locate"
     },
+    "searchMode": {
+      "keyword": "Keyword",
+      "hybrid": "Hybrid (Recommended)",
+      "semantic": "Semantic"
+    },
+    "sync": {
+      "button": "Sync Vector DB",
+      "syncing": "Syncing...",
+      "complete": "Sync complete: {{transcripts}} transcripts, {{segments}} segments indexed.",
+      "failed": "Sync failed: "
+    },
     "table": {
       "filename": "Filename",
       "segment": "Segment",
       "time": "Time",
+      "source": "Source",
       "actions": "Actions",
       "summary": "Summary",
       "language": "Language"
@@ -365,6 +377,7 @@
       "promptActionItems": "Action Items",
       "generating": "Generating...",
       "generate": "Generate Summary",
+      "failed": "Summary generation failed: ",
       "empty": "No summary yet."
     },
     "timeline": {

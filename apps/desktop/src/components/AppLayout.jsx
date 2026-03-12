@@ -11,7 +11,7 @@ import {
   FileText,
   Menu,
   X,
-  Sparkles,
+
   PanelLeftClose,
   PanelLeftOpen
 } from "lucide-react";
@@ -44,7 +44,7 @@ function AppLayout() {
     { name: t('nav.resources'), href: "/resources", icon: Folder },
     { name: t('nav.taskQueue'), href: "/tasks", icon: ListTodo },
     { name: t('nav.results'), href: "/results", icon: FileText },
-    { name: t('nav.aiSearch'), href: "/ai-search", icon: Sparkles },
+
     { name: t('nav.services'), href: "/services", icon: Terminal },
     { name: t('nav.models'), href: "/models", icon: KeyRound },
     { name: t('nav.settings'), href: "/settings", icon: SlidersHorizontal }

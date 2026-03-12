@@ -26,8 +26,8 @@ from pydantic import BaseModel
 from db.init_db import init_db
 from download_manager import download_manager, DownloadStatus
 from errors import E, ErrorResponse, raise_api_error, sanitize_error, build_error
-from mcp_gateway.client import call_tool as mcp_call_tool
 from mcp_gateway.registry import load_providers
+from llm_service import llm_summarize
 from pipeline.model_manager import get_model_info, is_model_downloaded, download_model
 
 _app_log = logging.getLogger("echotrace.app")
@@ -473,24 +473,20 @@ async def summarize(payload: SummarizeRequest) -> dict:
     if not provider:
         raise HTTPException(status_code=400, detail="unknown provider")
 
-    tool_name = provider.get("tool", "summarize")
-    result = await mcp_call_tool(
-        provider,
-        tool_name,
-        {
-            "text": payload.text,
-            "prompt_type": payload.prompt_type,
-            "model": payload.model,
-        },
+    summary = await llm_summarize(
+        provider_name=payload.provider,
+        provider_config=provider,
+        model=payload.model,
+        text=payload.text,
+        prompt_type=payload.prompt_type,
     )
-    summary = result.get("text", "")
     if payload.transcript_id and payload.update_summary and summary:
         with _connect(DEFAULT_DB_PATH) as conn:
             conn.execute(
                 "UPDATE transcript SET summary = ?, updated_at = ? WHERE id = ?",
                 (summary, _now(), payload.transcript_id),
             )
-    return {"ok": True, "summary": summary, "structured": result.get("structured")}
+    return {"ok": True, "summary": summary}
 
 
 @app.get("/export/{transcript_id}")

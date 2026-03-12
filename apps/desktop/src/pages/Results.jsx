@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Download, RefreshCw, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Database, Download, Loader2, RefreshCw, Search, SlidersHorizontal, Sparkles, Trash2, X } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useTranslation } from "react-i18next";
@@ -51,7 +51,8 @@ function Results() {
   const [searchTotal, setSearchTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [inputValue, setInputValue] = useState(""); // display value (updates freely)
+  const [searchTerm, setSearchTerm] = useState(""); // committed value (triggers search)
   const [searchOffset, setSearchOffset] = useState(0);
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -59,6 +60,22 @@ function Results() {
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const searchLimit = 20;
+
+  // IME composition guard
+  const composingRef = useRef(false);
+
+  // Semantic search state
+  const [searchMode, setSearchMode] = useState("keyword"); // keyword | hybrid | semantic
+  const [ragEnabled, setRagEnabled] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  useEffect(() => {
+    api.get("/rag/status").then((res) => {
+      const enabled = res.data?.enabled || false;
+      setRagEnabled(enabled);
+      if (enabled) setSearchMode("hybrid");
+    }).catch(() => {});
+  }, []);
 
   const loadResults = useCallback(async () => {
     try {
@@ -79,13 +96,17 @@ function Results() {
   useEffect(() => {
     const initial = searchParams.get("q") || "";
     const offsetParam = Number(searchParams.get("offset") || 0);
-    if (initial !== searchTerm) setSearchTerm(initial);
+    if (initial !== searchTerm) {
+      setSearchTerm(initial);
+      setInputValue(initial);
+    }
     if (!Number.isNaN(offsetParam) && offsetParam !== searchOffset)
       setSearchOffset(Math.max(0, offsetParam));
-  }, [searchParams, searchTerm, searchOffset]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const runSearch = useCallback(
-    async (term, offset, activeFilters) => {
+    async (term, offset, activeFilters, mode) => {
       const keyword = term.trim();
       if (!keyword) {
         setSearchResults([]);
@@ -94,18 +115,35 @@ function Results() {
       }
       try {
         setSearchLoading(true);
-        const params = { q: keyword, limit: searchLimit, offset };
-        if (activeFilters.date_from) params.date_from = activeFilters.date_from;
-        if (activeFilters.date_to) params.date_to = activeFilters.date_to;
-        if (activeFilters.duration_min !== "") params.duration_min = Number(activeFilters.duration_min);
-        if (activeFilters.duration_max !== "") params.duration_max = Number(activeFilters.duration_max);
-        if (activeFilters.language) params.language = activeFilters.language;
-        if (activeFilters.file_type) params.file_type = activeFilters.file_type;
-        if (activeFilters.sort_by && activeFilters.sort_by !== "relevance")
-          params.sort_by = activeFilters.sort_by;
-        const response = await api.get("/search", { params });
-        setSearchResults(response.data?.data || []);
-        setSearchTotal(response.data?.total || 0);
+
+        // Use semantic/hybrid endpoint when RAG is enabled and mode is not keyword
+        if (ragEnabled && mode !== "keyword") {
+          const response = await api.post("/search/semantic", {
+            query: keyword,
+            mode,
+            limit: searchLimit,
+          });
+          const data = (response.data?.data || []).map((item) => ({
+            ...item,
+            id: item.segment_id,
+            snippet: item.text,
+          }));
+          setSearchResults(data);
+          setSearchTotal(response.data?.total || data.length);
+        } else {
+          const params = { q: keyword, limit: searchLimit, offset };
+          if (activeFilters.date_from) params.date_from = activeFilters.date_from;
+          if (activeFilters.date_to) params.date_to = activeFilters.date_to;
+          if (activeFilters.duration_min !== "") params.duration_min = Number(activeFilters.duration_min);
+          if (activeFilters.duration_max !== "") params.duration_max = Number(activeFilters.duration_max);
+          if (activeFilters.language) params.language = activeFilters.language;
+          if (activeFilters.file_type) params.file_type = activeFilters.file_type;
+          if (activeFilters.sort_by && activeFilters.sort_by !== "relevance")
+            params.sort_by = activeFilters.sort_by;
+          const response = await api.get("/search", { params });
+          setSearchResults(response.data?.data || []);
+          setSearchTotal(response.data?.total || 0);
+        }
       } catch (error) {
         console.error("Failed to search:", error);
         setSearchResults([]);
@@ -114,12 +152,12 @@ function Results() {
         setSearchLoading(false);
       }
     },
-    [searchLimit]
+    [searchLimit, ragEnabled]
   );
 
   useEffect(() => {
-    runSearch(searchTerm, searchOffset, filters);
-  }, [runSearch, searchOffset, searchTerm, filters]);
+    runSearch(searchTerm, searchOffset, filters, searchMode);
+  }, [runSearch, searchOffset, searchTerm, filters, searchMode]);
 
   const filtered = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
@@ -188,6 +226,24 @@ function Results() {
     }
   };
 
+  const handleSyncVectorDb = async () => {
+    setSyncing(true);
+    try {
+      const response = await api.post("/rag/sync-all", null, {
+        params: { embedding_provider: "local" },
+      });
+      alert(t('results.sync.complete', {
+        transcripts: response.data.transcripts,
+        segments: response.data.segments,
+      }));
+    } catch (error) {
+      console.error("Sync failed:", error);
+      alert(t('results.sync.failed') + (error.response?.data?.detail || error.message));
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const toggleSelect = (id) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -220,10 +276,14 @@ function Results() {
     );
   };
 
-  const updateSearchParams = (term, offset = 0) => {
-    const trimmed = term.trim();
-    setSearchParams(trimmed ? { q: trimmed, offset: String(offset) } : {});
-  };
+  const updateTimerRef = useRef(null);
+  const updateSearchParams = useCallback((term, offset = 0) => {
+    clearTimeout(updateTimerRef.current);
+    updateTimerRef.current = setTimeout(() => {
+      const trimmed = term.trim();
+      setSearchParams(trimmed ? { q: trimmed, offset: String(offset) } : {});
+    }, 300);
+  }, [setSearchParams]);
 
   const setFilter = (key, value) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -257,13 +317,26 @@ function Results() {
           <h1 className="text-3xl font-bold text-gray-900">{t('results.title')}</h1>
           <p className="mt-1 text-gray-500 text-sm">{t('results.subtitle')}</p>
         </div>
-        <button type="button" className="btn btn-secondary" onClick={loadResults}>
-          <RefreshCw className="w-4 h-4" />
-          {t('results.refresh')}
-        </button>
+        <div className="flex items-center gap-2">
+          {ragEnabled && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={syncing}
+              onClick={handleSyncVectorDb}
+            >
+              {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
+              {syncing ? t('results.sync.syncing') : t('results.sync.button')}
+            </button>
+          )}
+          <button type="button" className="btn btn-secondary" onClick={loadResults}>
+            <RefreshCw className="w-4 h-4" />
+            {t('results.refresh')}
+          </button>
+        </div>
       </div>
 
-      {/* Search bar + filter toggle */}
+      {/* Search bar + mode toggle + filter toggle */}
       <div className="space-y-2">
         <div className="flex gap-2">
           <div className="form-search flex-1">
@@ -271,11 +344,24 @@ function Results() {
             <input
               className="form-search-input"
               placeholder={t('results.searchPlaceholder')}
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
+              value={inputValue}
+              onCompositionStart={() => { composingRef.current = true; }}
+              onCompositionEnd={(e) => {
+                composingRef.current = false;
+                const val = e.target.value;
+                setInputValue(val);
+                setSearchTerm(val);
                 setSearchOffset(0);
-                updateSearchParams(e.target.value, 0);
+                updateSearchParams(val, 0);
+              }}
+              onChange={(e) => {
+                const val = e.target.value;
+                setInputValue(val);
+                if (!composingRef.current) {
+                  setSearchTerm(val);
+                  setSearchOffset(0);
+                  updateSearchParams(val, 0);
+                }
               }}
             />
           </div>
@@ -292,6 +378,50 @@ function Results() {
               </span>
             )}
           </button>
+        </div>
+
+        {/* Search mode selector */}
+        <div className="flex items-center gap-4 text-sm">
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input
+              type="radio"
+              name="searchMode"
+              value="keyword"
+              checked={searchMode === "keyword"}
+              onChange={(e) => setSearchMode(e.target.value)}
+              className="text-blue-600"
+            />
+            <Search className="w-3.5 h-3.5 text-gray-400" />
+            <span className="text-gray-700">{t('results.searchMode.keyword')}</span>
+          </label>
+          {ragEnabled && (
+            <>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="searchMode"
+                  value="hybrid"
+                  checked={searchMode === "hybrid"}
+                  onChange={(e) => setSearchMode(e.target.value)}
+                  className="text-blue-600"
+                />
+                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                <span className="text-gray-700">{t('results.searchMode.hybrid')}</span>
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="searchMode"
+                  value="semantic"
+                  checked={searchMode === "semantic"}
+                  onChange={(e) => setSearchMode(e.target.value)}
+                  className="text-blue-600"
+                />
+                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                <span className="text-gray-700">{t('results.searchMode.semantic')}</span>
+              </label>
+            </>
+          )}
         </div>
 
         {/* Filter panel */}
@@ -411,34 +541,36 @@ function Results() {
           <div className="table-wrapper">
             <div className="flex items-center justify-between px-4 pt-4 pb-2 text-sm text-gray-500">
               <span>{t('results.searchResults.total', { total: searchTotal, start: pageStart, end: pageEnd })}</span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => {
-                    const next = Math.max(0, searchOffset - searchLimit);
-                    setSearchOffset(next);
-                    updateSearchParams(searchTerm, next);
-                  }}
-                  disabled={searchOffset === 0}
-                >
-                  {t('results.searchResults.prevPage')}
-                </button>
-                <span className="text-xs text-gray-400">{searchPage} / {totalPages}</span>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => {
-                    const next = searchOffset + searchLimit;
-                    if (next >= searchTotal) return;
-                    setSearchOffset(next);
-                    updateSearchParams(searchTerm, next);
-                  }}
-                  disabled={searchOffset + searchLimit >= searchTotal}
-                >
-                  {t('results.searchResults.nextPage')}
-                </button>
-              </div>
+              {searchMode === "keyword" && (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      const next = Math.max(0, searchOffset - searchLimit);
+                      setSearchOffset(next);
+                      updateSearchParams(searchTerm, next);
+                    }}
+                    disabled={searchOffset === 0}
+                  >
+                    {t('results.searchResults.prevPage')}
+                  </button>
+                  <span className="text-xs text-gray-400">{searchPage} / {totalPages}</span>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      const next = searchOffset + searchLimit;
+                      if (next >= searchTotal) return;
+                      setSearchOffset(next);
+                      updateSearchParams(searchTerm, next);
+                    }}
+                    disabled={searchOffset + searchLimit >= searchTotal}
+                  >
+                    {t('results.searchResults.nextPage')}
+                  </button>
+                </div>
+              )}
             </div>
             <table className="table">
               <thead>
@@ -446,6 +578,7 @@ function Results() {
                   <th>{t('results.table.filename')}</th>
                   <th>{t('results.table.segment')}</th>
                   <th>{t('results.table.time')}</th>
+                  {searchMode !== "keyword" && <th>{t('results.table.source')}</th>}
                   <th>{t('results.table.actions')}</th>
                 </tr>
               </thead>
@@ -454,11 +587,11 @@ function Results() {
                   const filename = item.filename || `#${item.transcript_id}`;
                   const snippet = item.snippet || item.text || "";
                   const linkParams = new URLSearchParams({
-                    segment: String(item.id),
+                    segment: String(item.id || item.segment_id),
                     q: searchTerm.trim(),
                   });
                   return (
-                    <tr key={item.id}>
+                    <tr key={`${item.transcript_id}-${item.id || item.segment_id}`}>
                       <td>
                         <Link
                           className="text-blue-600 hover:text-blue-700 text-sm"
@@ -471,8 +604,19 @@ function Results() {
                         {highlightText(snippet, searchTerm)}
                       </td>
                       <td className="text-xs text-gray-400 whitespace-nowrap">
-                        {item.start?.toFixed(1)}s – {item.end?.toFixed(1)}s
+                        {item.start?.toFixed(1)}s - {item.end?.toFixed(1)}s
                       </td>
+                      {searchMode !== "keyword" && (
+                        <td>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            item.source === "semantic"
+                              ? "bg-purple-100 text-purple-600"
+                              : "bg-blue-100 text-blue-600"
+                          }`}>
+                            {item.source === "semantic" ? t('results.searchMode.semantic') : t('results.searchMode.keyword')}
+                          </span>
+                        </td>
+                      )}
                       <td>
                         <Link
                           className="btn btn-secondary"

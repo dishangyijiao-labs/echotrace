@@ -143,10 +143,22 @@
       "noMatchHint": "换个关键词，或调整筛选条件试试。",
       "locate": "定位"
     },
+    "searchMode": {
+      "keyword": "关键词搜索",
+      "hybrid": "混合检索（推荐）",
+      "semantic": "语义检索"
+    },
+    "sync": {
+      "button": "同步向量库",
+      "syncing": "同步中...",
+      "complete": "同步完成：{{transcripts}} 条转录，{{segments}} 个片段已索引。",
+      "failed": "同步失败："
+    },
     "table": {
       "filename": "文件名",
       "segment": "片段",
       "time": "时间",
+      "source": "来源",
       "actions": "操作",
       "summary": "摘要",
       "language": "语言"
@@ -365,6 +377,7 @@
       "promptActionItems": "行动项",
       "generating": "生成中...",
       "generate": "生成摘要",
+      "failed": "摘要生成失败：",
       "empty": "还没有摘要。"
     },
     "timeline": {
