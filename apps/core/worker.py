@@ -4,6 +4,7 @@ import argparse
 import datetime as dt
 import logging
 import logging.handlers
+import os
 import sqlite3
 import sys
 import threading
@@ -12,9 +13,20 @@ import uuid as _uuid
 from dataclasses import dataclass
 from pathlib import Path
 
+# Sanitize NO_PROXY: httpx cannot parse IPv6 CIDR entries (e.g. fd7a:115c:a1e0::/48)
+for _key in ("NO_PROXY", "no_proxy"):
+    _val = os.environ.get(_key, "")
+    if _val:
+        _cleaned = ",".join(e.strip() for e in _val.split(",") if e.strip().count(":") < 2)
+        os.environ[_key] = _cleaned
+
+import opencc
+
 from pipeline.media import extract_audio
 from pipeline.whisper import load_model
 from db.init_db import init_db
+
+_t2s = opencc.OpenCC("t2s")
 
 APP_ROOT = Path(__file__).resolve().parent
 import os as _os
@@ -241,10 +253,18 @@ def process_job(conn: sqlite3.Connection, job, worker_id: str) -> None:
         processed = 0
         total_duration = info.duration or 0.0
         last_update = time.monotonic()
+        cancelled = False
         for segment in segments_stream:
             # Check heartbeat health every 5 segments
             if processed % 5 == 0 and heartbeat.is_failed():
                 raise RuntimeError("Heartbeat failed — DB connection may be lost")
+            # Check if job was cancelled via API
+            if processed % 5 == 0:
+                row = conn.execute("SELECT status FROM job WHERE id = ?", (job_id,)).fetchone()
+                if row and row["status"] == "cancelled":
+                    _tx_log.info("Job %d cancelled by user", job_id)
+                    cancelled = True
+                    break
             segments.append(
                 {
                     "start": float(segment.start),
@@ -263,6 +283,16 @@ def process_job(conn: sqlite3.Connection, job, worker_id: str) -> None:
                 conn.commit()
                 last_update = now
                 _tx_log.debug("Job %d: processed %d segments (%.0f%%)", job_id, processed, progress * 100)
+        if cancelled:
+            _set_job_status(conn, job_id, "cancelled")
+            conn.commit()
+            heartbeat.stop()
+            return
+
+        # Convert Traditional Chinese to Simplified for zh results
+        if info.language == "zh":
+            for seg in segments:
+                seg["text"] = _t2s.convert(seg["text"])
 
         content = "\n".join(segment["text"] for segment in segments).strip()
         transcript_id = _insert_transcript(conn, media["id"], content, info.language)

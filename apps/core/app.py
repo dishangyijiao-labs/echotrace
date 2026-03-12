@@ -11,6 +11,13 @@ import zipfile
 from pathlib import Path
 from typing import List, Optional
 
+# Sanitize NO_PROXY: httpx cannot parse IPv6 CIDR entries (e.g. fd7a:115c:a1e0::/48)
+for _key in ("NO_PROXY", "no_proxy"):
+    _val = os.environ.get(_key, "")
+    if _val:
+        _cleaned = ",".join(e.strip() for e in _val.split(",") if e.strip().count(":") < 2)
+        os.environ[_key] = _cleaned
+
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -91,7 +98,7 @@ _ALLOWED_ORIGINS = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_ALLOWED_ORIGINS,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
 )
 
@@ -301,6 +308,21 @@ def create_job(payload: JobCreateRequest) -> dict:
     return {"ok": True, "job_id": cursor.lastrowid}
 
 
+@app.post("/jobs/{job_id}/cancel")
+def cancel_job(job_id: int) -> dict:
+    with _connect(DEFAULT_DB_PATH) as conn:
+        row = conn.execute("SELECT status FROM job WHERE id = ?", (job_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="job not found")
+        if row["status"] not in ("queued", "running"):
+            raise HTTPException(status_code=400, detail=f"cannot cancel job in '{row['status']}' state")
+        conn.execute(
+            "UPDATE job SET status = 'cancelled', updated_at = ? WHERE id = ?",
+            (_now(), job_id),
+        )
+    return {"ok": True}
+
+
 @app.get("/jobs")
 def list_jobs() -> dict:
     with _connect(DEFAULT_DB_PATH) as conn:
@@ -399,7 +421,7 @@ def search(
     order_clause = {
         "date": "m.created_at DESC",
         "duration": "m.duration DESC",
-    }.get(sort_by, "rank")
+    }.get(sort_by, "s.start ASC")
 
     with _connect(DEFAULT_DB_PATH) as conn:
         total = conn.execute(
@@ -424,7 +446,7 @@ def search(
                    m.duration,
                    m.file_type,
                    t.language,
-                   snippet(segment_fts, 0, '', '', '...', 12) AS snippet
+                   s.text AS snippet
             FROM segment_fts fts
             JOIN segment s ON s.id = fts.rowid
             JOIN transcript t ON t.id = s.transcript_id
@@ -556,6 +578,19 @@ def batch_export(payload: BatchExportRequest) -> StreamingResponse:
     )
 
 
+@app.delete("/transcripts/{transcript_id}")
+def delete_transcript(transcript_id: int) -> dict:
+    with _connect(DEFAULT_DB_PATH) as conn:
+        transcript = conn.execute(
+            "SELECT id FROM transcript WHERE id = ?", (transcript_id,)
+        ).fetchone()
+        if not transcript:
+            raise HTTPException(status_code=404, detail="transcript not found")
+        conn.execute("DELETE FROM segment WHERE transcript_id = ?", (transcript_id,))
+        conn.execute("DELETE FROM transcript WHERE id = ?", (transcript_id,))
+    return {"ok": True}
+
+
 @app.post("/transcripts/{transcript_id}/write-subtitle")
 def write_subtitle(transcript_id: int) -> dict:
     """Write an SRT subtitle file alongside the source media file (non-destructive)."""
@@ -615,7 +650,7 @@ def get_model_status(model_name: str) -> dict:
     info = get_model_info(model_name)
     if not info:
         raise HTTPException(status_code=404, detail="Model not found")
-    
+
     return {
         "model": model_name,
         **info
@@ -677,24 +712,24 @@ async def cancel_model_download(model_name: str) -> dict:
 def index_transcript_to_vector(transcript_id: int, embedding_provider: str = "local") -> dict:
     """为指定转录文本建立向量索引"""
     _require_rag()
-    
+
     with _connect(DEFAULT_DB_PATH) as conn:
         # 检查转录是否存在
         transcript = conn.execute("SELECT id FROM transcript WHERE id = ?", (transcript_id,)).fetchone()
         if not transcript:
             raise HTTPException(status_code=404, detail="Transcript not found")
-        
+
         # 获取分段
         segments = conn.execute(
             "SELECT id, start, end, text FROM segment WHERE transcript_id = ?",
             (transcript_id,),
         ).fetchall()
-        
+
         seg_list = [dict(s) for s in segments]
-    
+
     vector_store = get_vector_store(embedding_provider)
     count = vector_store.index_transcript(transcript_id, seg_list)
-    
+
     return {"ok": True, "transcript_id": transcript_id, "indexed_segments": count}
 
 
@@ -702,7 +737,7 @@ def index_transcript_to_vector(transcript_id: int, embedding_provider: str = "lo
 def sync_all_to_vector(embedding_provider: str = "local") -> dict:
     """同步所有转录文本到向量库"""
     _require_rag()
-    
+
     result = sync_all_transcripts_to_vector(DEFAULT_DB_PATH, embedding_provider)
     return {"ok": True, **result}
 
@@ -711,10 +746,10 @@ def sync_all_to_vector(embedding_provider: str = "local") -> dict:
 def semantic_search(payload: SemanticSearchRequest) -> dict:
     """语义搜索（支持混合检索）"""
     _require_rag()
-    
+
     retriever = get_retriever(DEFAULT_DB_PATH)
     results = retriever.search(payload.query, mode=payload.mode, limit=payload.limit)
-    
+
     return {"ok": True, "data": results, "total": len(results), "mode": payload.mode}
 
 
@@ -722,28 +757,28 @@ def semantic_search(payload: SemanticSearchRequest) -> dict:
 def agent_query(payload: AgentQueryRequest) -> dict:
     """Agent 智能查询"""
     _require_rag()
-    
+
     if payload.agent_type == "search":
         agent = get_search_agent()
         response = agent.run(payload.query)
         return {"ok": True, "response": response, "agent": "search"}
-    
+
     elif payload.agent_type == "clip_extractor":
         # 先搜索相关片段
         retriever = get_retriever(DEFAULT_DB_PATH)
         search_results = retriever.search(payload.query, mode="hybrid", limit=10)
-        
+
         # 调用剪辑建议 Agent
         agent = ClipExtractorAgent()
         suggestions = agent.suggest_clips(search_results, payload.query)
-        
+
         return {
             "ok": True,
             "response": suggestions,
             "agent": "clip_extractor",
             "related_clips": search_results,
         }
-    
+
     else:
         raise HTTPException(status_code=400, detail=f"Unknown agent type: {payload.agent_type}")
 
