@@ -60,6 +60,7 @@ apps/core/mcp_gateway/providers.json
 
 # Desktop (Tauri) specific
 apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
 apps/desktop/dist/
 apps/desktop/.vite/
 
@@ -87,3 +88,10 @@ chroma_db/
 
 # Embeddings cache
 apps/core/data/embeddings_cache/
+
+# Staging / temp media
+apps/core/data/staging/
+
+# Dev utility scripts
+apps/core/benchmark.py
+apps/core/resource_monitor.py
