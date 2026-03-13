@@ -1,164 +1,73 @@
 # EchoTrace Copilot Instructions
 
 ## Project Overview
-EchoTrace (语迹) is a bilingual (Chinese/English) intelligent media transcription system with Django backend, React frontend, and standalone Python transcription pipeline. It converts local and NAS audio/video files into searchable text using OpenAI Whisper.
 
-## Architecture Quick Reference
+EchoTrace is a macOS desktop app for video/audio transcription and search. Tauri 2.0 (Rust) shell manages a React frontend and Python backend processes.
 
-**3-Tier Structure:**
-- **Backend**: Django 5.2 + DRF (`backend/`) - API on port 8001
-- **Frontend**: React 19 + Vite (`frontend/`) - Dev on port 5173, Docker on port 8080  
-- **Pipeline**: Standalone batch processor (`src/pipeline/`) - Independent of Django
+## Architecture
 
-**Key Services** (docker-compose.yml):
-- `backend`: Django + Celery tasks
-- `celery-worker`: Async transcription processing
-- `celery-beat`: Scheduled jobs (NAS scans at 22:00)
-- `postgres`: Primary database (port 5434)
-- `redis`: Celery broker + cache (port 6380)
+```
+apps/
+  desktop/          # Tauri 2.0 + React frontend
+    src/            # React pages (JSX), TailwindCSS, i18next (zh/en)
+    src-tauri/      # Rust shell: spawns/manages Python child processes
+  core/             # Python backend (FastAPI + faster-whisper)
+    app.py          # REST API server on port 8787 + SSE endpoint
+    worker.py       # Background transcription worker (polls job queue)
+    llm_service.py  # LLM provider gateway (OpenAI, DeepSeek, Claude, Ollama)
+    pipeline/       # Media processing: audio extraction (FFmpeg), whisper transcription
+    db/             # SQLite schema, migrations, init_db.py
+    rag/            # ChromaDB vector store for semantic search
+```
 
-## Critical Developer Workflows
+**Data flow:** Frontend → REST API (app.py) → SQLite (jobs/media/transcripts) ← Worker (worker.py) polls and processes jobs. SSE `/events/jobs` for real-time updates with polling fallback.
 
-### Local Development Setup
+**Process management:** Rust `lib.rs` spawns `app.py` and `worker.py` as child processes using Unix process groups (`setpgid`). On exit, kills entire process group (`kill -pid`).
+
+## Common Commands
+
 ```bash
-# Backend
-cd backend && source venv/bin/activate
-python manage.py migrate
-python manage.py runserver  # runs on :8000 by default
+# Full dev mode (starts core API, worker, and Tauri frontend)
+npm run dev
 
-# Frontend
-cd frontend && npm install
-npm run dev  # Vite dev server on :5173
+# Individual components
+npm run dev:core        # Python API on :8787
+npm run dev:worker      # Background worker
+npm run dev:desktop     # Tauri dev (auto-starts core + worker via Rust)
 
-# Docker (recommended)
-./scripts/start.sh  # Equivalent to: docker compose up --build backend frontend
+# Build release (.dmg, macOS only)
+cd apps/desktop && npm run tauri build -- --target aarch64-apple-darwin
+
+# Setup from scratch
+npm run setup           # Creates Python venv + installs deps + npm install
+
+# Run Python tests
+cd apps/core && .venv/bin/python -m pytest
 ```
 
-### Testing
-- **Manual API tests**: `python test_auth.py`, `test_resources.py`, `test_search.py` (requires backend running on port 8000)
-- **No pytest/unittest yet** - tests are standalone scripts
+## Key Conventions
 
-### Code Quality
-```bash
-ruff check backend src           # Lint backend + pipeline
-ruff check backend src --fix     # Auto-fix issues
-ruff format backend src          # Format code
-```
-Ruff config: `backend/pyproject.toml` - 88 char lines, Python 3.11+, excludes migrations
+- **macOS only** — builds for `aarch64-apple-darwin` only.
+- **Bundled deps** — Release bundles Python interpreter, FFmpeg, and whisper model inside `.app` via `bundle-deps.sh`.
+- **SQLite + FTS5** — Full-text search on transcripts. Schema in `apps/core/db/schema.sql`.
+- **i18n** — Chinese and English via `react-i18next`. Translation files in `apps/desktop/src/i18n/`.
+- **UI** — TailwindCSS with neutral gray `card` class for consistent styling.
+- **Process cleanup** — Child processes use `setpgid(0,0)` for group isolation. Always kill process groups, not individual PIDs.
 
-### Pipeline Execution
-```bash
-# Batch transcription (independent of Django)
-python -m src.pipeline.cli run --config config/config.yaml
-```
-Pipeline stages: ingest → extract audio → chunk → transcribe → clean → export (JSONL/Parquet)
+## Frontend Structure
 
-## Django App Structure & Responsibilities
+Pages in `apps/desktop/src/pages/`: Dashboard, TaskQueue, Results, TranscriptDetail, Resources, Models, Services, WhisperModels, Settings. Routing in `App.jsx`. API calls use `axios` to `http://127.0.0.1:8787`.
 
-```
-backend/
-├── accounts/      # JWT auth, user roles (admin/editor/viewer)
-├── media/         # MediaFile model, NOT media app - see management/
-├── transcripts/   # Transcript + TranscriptVersion with versioning
-├── tasks/         # Generic task queue (pending/running/completed/failed)
-├── scheduler/     # APScheduler integration (being replaced by Celery Beat)
-├── activities/    # Activity logging and audit trails
-├── settings/      # App-level settings (SystemSetting model)
-├── dashboard/     # Dashboard aggregation views
-└── audit/         # System audit records
-```
+## Backend API
 
-**⚠️ Important**: `backend/media/` is a Django app, not the media files directory. Uploaded files go to `backend/media/` (filesystem) or Docker volume `backend_media:/app/media`.
+`app.py` serves REST endpoints: `/media`, `/jobs`, `/search`, `/transcripts/{id}`, `/settings`, `/events/jobs` (SSE). CORS enabled for Tauri webview origins.
 
-## Project-Specific Patterns
+## Environment Variables
 
-### Database Models - Key Relationships
-```python
-User
-  ├─> MediaFile (owner) - SHA256 deduplication, one-to-one with Transcript
-  │    └─> Job (transcription jobs with priority queue)
-  ├─> Transcript (owner) - Has current_version FK
-  │    └─> TranscriptVersion (editor) - Immutable versions, version_no
-  └─> Task (created_by, assigned_to)
-```
-
-### MediaFile Deduplication Pattern
-- **Unique Constraint**: SHA256 hash prevents duplicate uploads
-- **Status Flow**: `pending → processing → done/failed`
-- Check `media/models.py` for validation logic
-
-### Transcript Versioning Pattern
-- Every edit creates a new `TranscriptVersion` record
-- `Transcript.current_version` FK points to active version
-- Methods: `create_version(editor, content)`, `rollback_to_version(version_id)`
-- Properties: `current_content`, `version_count`
-
-### Celery Task Integration (Recent Migration from APScheduler)
-- **Broker**: Redis at `redis://localhost:6379/0` (or `redis:6379` in Docker)
-- **Task location**: `media/tasks.py` (converted from APScheduler)
-- **Beat schedule**: Defined in `settings.CELERY_BEAT_SCHEDULE`
-  - `nas-scan-daily`: Runs at 22:00 daily
-  - `cleanup-weekly`: Runs Sundays at 02:00
-- **Worker command**: `celery -A backend worker --loglevel=info`
-- **Beat command**: `celery -A backend beat --scheduler django_celery_beat.schedulers:DatabaseScheduler`
-
-### Frontend API Configuration
-- **Base URL**: `VITE_API_BASE` env var (default: `http://localhost:8001/api`)
-- **Auth**: JWT tokens in localStorage (`token`, `user`)
-- **Interceptors** (App.jsx):
-  - Request: Adds `Authorization: Bearer <token>` header
-  - Response: Auto-redirects to `/signin` on 401
-
-### Environment Configuration
-**Backend** (`backend/media_manager/settings.py`):
-- `ECHOTRACE` dict for app-specific settings:
-  - `WHISPER_MODEL`: tiny/base/small/medium/large
-  - `WHISPER_DEVICE`: cpu/cuda/auto (default: cpu to avoid GPU issues)
-  - `WHISPER_LANGUAGE`: zh/en/auto
-  - `MAX_FILE_SIZE`: 2GB limit
-  - `TRANSCRIPTION_TIMEOUT`: 1800s (30 min)
-
-**Docker Env Vars**:
-- `DJANGO_DEBUG`, `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS`
-- `DJANGO_DB_ENGINE`: Switch between SQLite and PostgreSQL
-- `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`: Redis connection strings
-
-## Cross-Component Integration
-
-### NAS Integration
-- **Apps involved**: `media/` (NAS connector), `scheduler/` (periodic scans)
-- **Access methods**: SMB/WebDAV file browsing from frontend
-- **Scan jobs**: Celery Beat task runs daily NAS discovery
-
-### Job Priority Queue
-- `Job` model has `priority` field: high-priority jobs processed first
-- Worker concurrency: `ECHOTRACE['WORKER_CONCURRENCY']` (default: 1)
-
-### Pipeline-to-Django Boundary
-- Pipeline operates **independently** - no Django models imported
-- Output: JSONL/Parquet files in `pipeline_data/output/`
-- Manual import process required to sync results to Django
-
-## Migration Notes & Current State
-
-### Recently Completed
-- **Celery Migration**: Replaced APScheduler with Celery + Redis + django-celery-beat
-- **Test Results**: See `CELERY_INTEGRATION_SUMMARY.md` - all tests passed
-
-### Known Issues
-- Docker builds may fail due to network issues (rebuild when stable)
-- Manual test scripts require backend on port 8000 (not 8001)
-
-## Common Gotchas
-
-1. **Port Confusion**: Dev backend uses 8000, Docker uses 8001, frontend Vite uses 5173, Docker frontend uses 8080
-2. **Database Switching**: Check `DJANGO_DB_ENGINE` env var - SQLite by default, PostgreSQL in Docker
-3. **Media Files**: Don't confuse `backend/media/` (Django app) with `backend/media/` (uploaded files) or Docker volume `backend_media`
-4. **Migrations**: Must run `python manage.py migrate` after adding django-celery-beat to create scheduler tables
-5. **Pipeline Independence**: `src/pipeline/` has no Django dependencies - uses SQLModel for its own manifest DB
+Copy `apps/core/.env.example` to `apps/core/.env` and fill in your API keys. See the example file for all supported variables.
 
 ## References
+
 - Architecture deep-dive: [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md)
 - Setup guide: [README.md](../README.md)
-- Celery integration: [CELERY_INTEGRATION_SUMMARY.md](../CELERY_INTEGRATION_SUMMARY.md)
-- Legacy AI guidance: [CLAUDE.md](../CLAUDE.md)
+- AI coding guidance: [CLAUDE.md](../CLAUDE.md)
