@@ -889,4 +889,7 @@ def update_app_settings(payload: AppSettingsUpdate) -> dict:
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("app:app", host="127.0.0.1", port=8787, reload=True)
+    # Disable reload in bundled app — the reloader crashes on macOS .app bundles
+    # because os.getcwd() fails when there is no valid working directory.
+    is_bundled = ".app/Contents/Resources" in os.path.abspath(__file__)
+    uvicorn.run("app:app", host="127.0.0.1", port=8787, reload=not is_bundled)
