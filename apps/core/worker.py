@@ -237,7 +237,11 @@ def process_job(conn: sqlite3.Connection, job, worker_id: str) -> None:
 
     audio_path = STAGING_DIR / f"media_{media['id']}.wav"
     try:
-        extracted = extract_audio(source_path, audio_path)
+        if audio_path.exists() and audio_path.stat().st_size > 0:
+            _tx_log.info("Job %d: reusing cached audio %s", job_id, audio_path)
+            extracted = audio_path
+        else:
+            extracted = extract_audio(source_path, audio_path)
         _set_job_progress(conn, job_id, 0, 0, 0.05)
         conn.commit()
         model = load_model(job["model"], job["device"])

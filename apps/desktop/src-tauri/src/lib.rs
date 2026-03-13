@@ -170,6 +170,17 @@ fn file_hash(path: &Path) -> Option<String> {
 }
 
 fn setup_venv(app: &AppHandle) -> Result<PathBuf, String> {
+    // Check if a bundled venv exists in the Resources/core directory (packaged .app)
+    let bundled_python = core_dir().join(".venv").join("bin").join("python3");
+    if bundled_python.exists() {
+        if let Some(ver) = python_version(&bundled_python) {
+            if ver >= MIN_PYTHON {
+                eprintln!("✅ Using bundled Python {}.{} from {:?}", ver.0, ver.1, bundled_python);
+                return Ok(bundled_python);
+            }
+        }
+    }
+
     let venv = venv_dir(app);
     let python_bin = venv.join("bin").join("python3");
     let marker = venv.join(".installed");

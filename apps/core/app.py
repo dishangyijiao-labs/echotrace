@@ -259,7 +259,12 @@ def import_media(payload: MediaImportRequest) -> dict:
     if not payload.paths:
         raise_api_error(400, E.PATHS_EMPTY, "paths cannot be empty")
 
+    settings = _load_settings()
+    auto = settings.get("auto_transcribe", _DEFAULT_APP_SETTINGS["auto_transcribe"])
+    model = settings.get("default_model", _DEFAULT_APP_SETTINGS["default_model"])
+
     created = []
+    jobs_created = 0
     with _connect(DEFAULT_DB_PATH) as conn:
         for path_str in payload.paths:
             path = validate_import_path(path_str)
@@ -272,8 +277,22 @@ def import_media(payload: MediaImportRequest) -> dict:
                 """,
                 (str(path), path.name, file_type, None, now),
             )
-            created.append({"id": cursor.lastrowid, "filename": path.name})
-    return {"ok": True, "created": created}
+            media_id = cursor.lastrowid
+            created.append({"id": media_id, "filename": path.name})
+
+            if auto:
+                conn.execute(
+                    """
+                    INSERT INTO job (
+                        media_id, status, engine, model, device, progress,
+                        processed_segments, total_segments, error, created_at, updated_at
+                    ) VALUES (?, 'queued', 'whisper', ?, 'cpu', 0, 0, 0, NULL, ?, ?)
+                    """,
+                    (media_id, model, now, now),
+                )
+                jobs_created += 1
+
+    return {"ok": True, "created": created, "jobs_created": jobs_created}
 
 
 @app.get("/media")
@@ -842,6 +861,8 @@ def get_app_settings() -> dict:
 
 class AppSettingsUpdate(BaseModel):
     semantic_search_enabled: Optional[bool] = None
+    auto_transcribe: Optional[bool] = None
+    default_model: Optional[str] = None
 
 
 @app.patch("/settings")
@@ -855,6 +876,12 @@ def update_app_settings(payload: AppSettingsUpdate) -> dict:
         current["semantic_search_enabled"] = payload.semantic_search_enabled
         RAG_ENABLED = payload.semantic_search_enabled and RAG_AVAILABLE
         _app_log.info("Semantic search toggled to %s", RAG_ENABLED)
+    if payload.auto_transcribe is not None:
+        current["auto_transcribe"] = payload.auto_transcribe
+    if payload.default_model is not None:
+        if payload.default_model not in _VALID_MODELS:
+            raise HTTPException(status_code=400, detail=f"Invalid model: {payload.default_model}")
+        current["default_model"] = payload.default_model
     _save_settings(current)
     return {"ok": True, "data": {**_DEFAULT_APP_SETTINGS, **current}}
 

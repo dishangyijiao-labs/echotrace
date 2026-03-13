@@ -47,58 +47,62 @@ function TaskQueue() {
   const [batchModel, setBatchModel] = useState("small");
   const [batchDevice, setBatchDevice] = useState("cpu");
   const [batchResult, setBatchResult] = useState(null);
+  const [memWarning, setMemWarning] = useState(null);
   const intervalRef = useRef(null);
   const prevStatusRef = useRef({});
   const mediaMap = useRef({});
+
+  const applyJobs = useCallback((data) => {
+    setJobs(data);
+
+    // Detect job completions and send system notifications
+    if ("Notification" in window && Notification.permission === "granted") {
+      data.forEach((job) => {
+        const prev = prevStatusRef.current[job.id];
+        if (prev && prev !== job.status) {
+          if (job.status === "done") {
+            const name = mediaMap.current?.[job.media_id]?.filename || t('taskQueue.taskFallback', { id: job.id });
+            new Notification(t('taskQueue.notification.doneTitle'), {
+              body: t('taskQueue.notification.doneBody', { name }),
+              icon: "/icons/128x128.png",
+            });
+          } else if (job.status === "error") {
+            const name = mediaMap.current?.[job.media_id]?.filename || t('taskQueue.taskFallback', { id: job.id });
+            new Notification(t('taskQueue.notification.errorTitle'), {
+              body: t('taskQueue.notification.errorBody', { name }),
+            });
+          }
+        }
+        prevStatusRef.current[job.id] = job.status;
+      });
+    }
+
+    setProgressHistory((prev) => {
+      const next = { ...prev };
+      const now = Date.now();
+      data.forEach((job) => {
+        const progress = Math.min(Math.max(job.progress || 0, 0), 1);
+        const entry = { t: now, v: progress };
+        const history = next[job.id] ? [...next[job.id]] : [];
+        const last = history[history.length - 1];
+        if (!last || last.v !== entry.v) history.push(entry);
+        next[job.id] = history.slice(-30);
+      });
+      return next;
+    });
+  }, [t]);
 
   const loadJobs = useCallback(async (withLoading = true) => {
     try {
       if (withLoading) setLoading(true);
       const response = await api.get("/jobs");
-      const data = response.data?.data || [];
-      setJobs(data);
-
-      // Detect job completions and send system notifications
-      if ("Notification" in window && Notification.permission === "granted") {
-        data.forEach((job) => {
-          const prev = prevStatusRef.current[job.id];
-          if (prev && prev !== job.status) {
-            if (job.status === "done") {
-              const name = mediaMap.current?.[job.media_id]?.filename || t('taskQueue.taskFallback', { id: job.id });
-              new Notification(t('taskQueue.notification.doneTitle'), {
-                body: t('taskQueue.notification.doneBody', { name }),
-                icon: "/icons/128x128.png",
-              });
-            } else if (job.status === "error") {
-              const name = mediaMap.current?.[job.media_id]?.filename || t('taskQueue.taskFallback', { id: job.id });
-              new Notification(t('taskQueue.notification.errorTitle'), {
-                body: t('taskQueue.notification.errorBody', { name }),
-              });
-            }
-          }
-          prevStatusRef.current[job.id] = job.status;
-        });
-      }
-
-      setProgressHistory((prev) => {
-        const next = { ...prev };
-        const now = Date.now();
-        data.forEach((job) => {
-          const progress = Math.min(Math.max(job.progress || 0, 0), 1);
-          const entry = { t: now, v: progress };
-          const history = next[job.id] ? [...next[job.id]] : [];
-          const last = history[history.length - 1];
-          if (!last || last.v !== entry.v) history.push(entry);
-          next[job.id] = history.slice(-30);
-        });
-        return next;
-      });
+      applyJobs(response.data?.data || []);
     } catch (error) {
       console.error("Failed to load jobs:", error);
     } finally {
       if (withLoading) setLoading(false);
     }
-  }, [t]);
+  }, [applyJobs]);
 
   const loadMedia = useCallback(async () => {
     try {
@@ -116,12 +120,50 @@ function TaskQueue() {
     }
   }, []);
 
+  // Check memory when model selection changes
+  useEffect(() => {
+    setMemWarning(null);
+    api.get(`/models/${batchModel}/preflight`)
+      .then((res) => {
+        const d = res.data;
+        if (d?.enough === false) {
+          setMemWarning(t('taskQueue.memWarning', { available: d.available_mb, required: d.required_mb }));
+        }
+      })
+      .catch(() => {});
+  }, [batchModel, t]);
+
   useEffect(() => {
     loadJobs();
     loadMedia();
-    intervalRef.current = setInterval(() => loadJobs(false), 3000);
-    return () => clearInterval(intervalRef.current);
-  }, [loadJobs, loadMedia]);
+
+    // Try SSE for real-time updates, fall back to polling on error
+    const baseUrl = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8787";
+    const es = new EventSource(`${baseUrl}/events/jobs`);
+    let fallback = false;
+
+    es.onmessage = (event) => {
+      try {
+        applyJobs(JSON.parse(event.data));
+      } catch (e) {
+        console.error("SSE parse error:", e);
+      }
+    };
+
+    es.onerror = () => {
+      if (!fallback) {
+        fallback = true;
+        es.close();
+        console.warn("SSE failed, falling back to polling");
+        intervalRef.current = setInterval(() => loadJobs(false), 3000);
+      }
+    };
+
+    return () => {
+      es.close();
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [loadJobs, loadMedia, applyJobs]);
 
   const mediaMapState = useMemo(() => {
     const map = {};
@@ -135,7 +177,7 @@ function TaskQueue() {
   const busyMediaIds = useMemo(() => {
     const ids = new Set();
     jobs.forEach((j) => {
-      if (j.status === "queued" || j.status === "running") ids.add(j.media_id);
+      if (j.status === "queued" || j.status === "running" || j.status === "done") ids.add(j.media_id);
     });
     return ids;
   }, [jobs]);
@@ -317,6 +359,9 @@ function TaskQueue() {
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
+            {memWarning && (
+              <p className="mt-1 text-xs text-yellow-600">{memWarning}</p>
+            )}
           </div>
           <div>
             <label className="text-sm font-medium text-gray-700">{t('taskQueue.batch.deviceLabel')}</label>
