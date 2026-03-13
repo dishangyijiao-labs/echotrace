@@ -4,6 +4,7 @@ use std::{
     fs::{self, OpenOptions},
     hash::Hasher,
     net::TcpStream,
+    os::unix::process::CommandExt,
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     sync::Mutex,
@@ -434,6 +435,14 @@ fn spawn_process(app: &AppHandle, script: &str, log_name: &str) -> Result<Child,
         cmd.env("ECHOTRACE_FFMPEG", &bundled_ffmpeg);
     }
 
+    // Create a new process group so we can kill the entire tree on cleanup
+    unsafe {
+        cmd.pre_exec(|| {
+            libc::setpgid(0, 0);
+            Ok(())
+        });
+    }
+
     cmd.stdout(Stdio::from(stdout))
         .stderr(Stdio::from(stderr))
         .spawn()
@@ -488,7 +497,12 @@ fn start_process(
 fn stop_process(target: &Mutex<Option<Child>>) -> Result<bool, String> {
     let mut guard = target.lock().map_err(|_| "lock failed".to_string())?;
     if let Some(mut child) = guard.take() {
-        let _ = child.kill();
+        // Kill the entire process group (negative PID) to clean up child processes
+        let pid = child.id() as i32;
+        unsafe { libc::kill(-pid, libc::SIGTERM); }
+        // Give processes a moment to shut down gracefully, then force kill
+        std::thread::sleep(Duration::from_millis(500));
+        unsafe { libc::kill(-pid, libc::SIGKILL); }
         let _ = child.wait();
         return Ok(true);
     }
@@ -755,4 +769,12 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+
+    // Tauri has exited — clean up any remaining child processes.
+    // Drop on ProcessState should handle this, but as a safety net
+    // we also kill by well-known process patterns.
+    // Use -if (case-insensitive) because macOS may show "Python" instead of "python".
+    let _ = Command::new("pkill").args(["-if", "python.*app\\.py"]).status();
+    let _ = Command::new("pkill").args(["-if", "python.*worker\\.py"]).status();
+    eprintln!("🧹 Cleaned up child processes on exit");
 }
