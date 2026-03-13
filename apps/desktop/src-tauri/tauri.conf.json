@@ -42,7 +42,18 @@
       "../../core/requirements.txt": "core/requirements.txt",
       "../../core/db": "core/db",
       "../../core/pipeline": "core/pipeline",
-      "../../core/rag": "core/rag"
+      "../../core/rag": "core/rag",
+      "../../core/python": "core/python",
+      "../../core/bin": "core/bin",
+      "../../core/models": "core/models"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/dishangyijiao-labs/echotrace/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ3NzMyQUQ3QkI3RTlFMUUKUldRZW5uNjcxeXB6UjFhYkdsY2pQYkFTUGxuZm45UWVKMFkxczVZZGpyUFI1Z3kyWEFteXB2YWsK"
     }
   }
 }

@@ -95,3 +95,9 @@ apps/core/data/staging/
 # Dev utility scripts
 apps/core/benchmark.py
 apps/core/resource_monitor.py
+
+# Bundled dependencies (downloaded by bundle-deps.sh, not committed)
+apps/core/python/
+apps/core/bin/
+apps/core/models/
+apps/desktop/.bundle-cache/

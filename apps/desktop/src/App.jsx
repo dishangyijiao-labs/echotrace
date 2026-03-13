@@ -1,5 +1,5 @@
 import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import AppLayout from "./components/AppLayout";
 import ModelSetup from "./components/ModelSetup";
 import Dashboard from "./pages/Dashboard";
@@ -10,44 +10,73 @@ import TranscriptDetail from "./pages/TranscriptDetail";
 import Services from "./pages/Services";
 import Models from "./pages/Models";
 import Settings from "./pages/Settings";
+import UpdateChecker from "./components/UpdateChecker";
 
+import { invoke } from "@tauri-apps/api/core";
+
+const PHASE_LABELS = {
+  starting: '正在初始化...',
+  setup_venv: '正在配置 Python 环境...',
+  starting_core: '正在启动 Core API...',
+  waiting_core: '等待 Core API 就绪...',
+  ready: '服务已就绪',
+};
 
 function App() {
   const [modelReady, setModelReady] = useState(null); // null = checking, false = need setup, true = ready
   const [serviceStatus, setServiceStatus] = useState('starting'); // starting, ready, error
+  const [phaseLabel, setPhaseLabel] = useState(PHASE_LABELS.starting);
+  const timerRef = useRef(null);
 
   useEffect(() => {
-    waitForServicesAndCheckModel();
+    pollStartupStatus();
+    return () => clearTimeout(timerRef.current);
   }, []);
 
-  const waitForServicesAndCheckModel = async () => {
-    // Wait for Core API to be ready (with retries)
-    const maxRetries = 15; // 15 seconds timeout
-    let retries = 0;
-    
-    while (retries < maxRetries) {
+  const pollStartupStatus = async () => {
+    // Get startup phase from Tauri backend
+    let phase = 'starting';
+    try {
+      phase = await invoke('startup_status');
+    } catch {
+      // command not available yet — fall through
+    }
+
+    // Update display label
+    if (phase.startsWith('venv_error:') || phase.startsWith('core_error:')) {
+      const errMsg = phase.split(':').slice(1).join(':');
+      setPhaseLabel(errMsg);
+      setServiceStatus('error');
+      setModelReady(false);
+      return;
+    }
+
+    if (phase === 'core_timeout') {
+      setPhaseLabel('Core API 启动超时，请检查日志');
+      setServiceStatus('error');
+      setModelReady(false);
+      return;
+    }
+
+    setPhaseLabel(PHASE_LABELS[phase] || PHASE_LABELS.starting);
+
+    // If backend says ready, verify by checking the API
+    if (phase === 'ready') {
       try {
         const response = await fetch('http://127.0.0.1:8787/models/base', {
-          signal: AbortSignal.timeout(1000)
+          signal: AbortSignal.timeout(2000),
         });
         const data = await response.json();
-        
-        // Service is ready, check model status
         setServiceStatus('ready');
         setModelReady(data.downloaded === true);
         return;
-      } catch (err) {
-        // Service not ready yet, wait and retry
-        retries++;
-        if (retries < maxRetries) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
+      } catch {
+        // Core said ready but API not responding yet — keep polling
       }
     }
-    
-    // If we get here, service failed to start
-    setServiceStatus('error');
-    setModelReady(false);
+
+    // Keep polling every 1s
+    timerRef.current = setTimeout(pollStartupStatus, 1000);
   };
 
   // Show loading while starting services
@@ -55,23 +84,24 @@ function App() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          {serviceStatus === 'starting' && (
+          {serviceStatus === 'error' ? (
             <>
-              <p className="text-gray-700 font-medium">正在启动服务...</p>
-              <p className="text-gray-500 text-sm mt-2">Core API 和 Worker 正在后台启动</p>
-            </>
-          )}
-          {serviceStatus === 'error' && (
-            <>
+              <div className="h-12 w-12 mx-auto mb-4 flex items-center justify-center">
+                <svg className="h-10 w-10 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
               <p className="text-red-700 font-medium">服务启动失败</p>
-              <p className="text-red-600 text-sm mt-2">请检查 Python 环境是否已配置</p>
+              <p className="text-red-600 text-sm mt-2 max-w-md mx-auto">{phaseLabel}</p>
               <p className="text-gray-500 text-sm mt-4">
-                需要确保已安装 Python 依赖：<br />
-                <code className="bg-gray-100 px-2 py-1 rounded text-xs">
-                  cd apps/core && pip install -r requirements.txt
-                </code>
+                请尝试重新安装应用，或查看日志获取详情。
               </p>
+            </>
+          ) : (
+            <>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-700 font-medium">{phaseLabel}</p>
+              <p className="text-gray-500 text-sm mt-2">Core API 和 Worker 正在后台启动</p>
             </>
           )}
         </div>
@@ -102,6 +132,7 @@ function App() {
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
+      <UpdateChecker />
     </HashRouter>
   );
 }

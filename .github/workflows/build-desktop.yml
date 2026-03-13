@@ -44,6 +44,10 @@ jobs:
         working-directory: apps/desktop
         run: npm install
 
+      - name: Bundle Python, FFmpeg, and model
+        working-directory: apps/desktop
+        run: ./bundle-deps.sh
+
       - name: Write Apple API private key to file
         if: matrix.platform == 'macos-latest'
         run: |
@@ -63,7 +67,10 @@ jobs:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER_ID }}
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_KEY_PATH: /tmp/apple_keys/AuthKey_${{ secrets.APPLE_API_KEY_ID }}.p8
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         with:
+          includeUpdaterJson: true
           projectPath: apps/desktop
           tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
           releaseName: ${{ startsWith(github.ref, 'refs/tags/') && format('EchoTrace {0}', github.ref_name) || '' }}

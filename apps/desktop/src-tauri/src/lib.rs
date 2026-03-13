@@ -11,6 +11,8 @@ use std::{
     time::Duration,
 };
 
+use std::sync::RwLock;
+
 use tauri::{
     menu::MenuBuilder,
     tray::TrayIconBuilder,
@@ -58,6 +60,19 @@ const DEFAULT_MCP_PROVIDERS: &str = r#"{
     "env": {}
   }
 }"#;
+
+/// Tracks the startup phase so the frontend can show meaningful progress.
+struct StartupStatus {
+    phase: RwLock<String>,
+}
+
+impl Default for StartupStatus {
+    fn default() -> Self {
+        Self {
+            phase: RwLock::new("starting".to_string()),
+        }
+    }
+}
 
 #[derive(Default)]
 struct ProcessState {
@@ -171,6 +186,17 @@ fn file_hash(path: &Path) -> Option<String> {
 }
 
 fn setup_venv(app: &AppHandle) -> Result<PathBuf, String> {
+    // Check if a bundled standalone Python exists (portable, from python-build-standalone)
+    let bundled_standalone = core_dir().join("python").join("bin").join("python3");
+    if bundled_standalone.exists() {
+        if let Some(ver) = python_version(&bundled_standalone) {
+            if ver >= MIN_PYTHON {
+                eprintln!("✅ Using bundled standalone Python {}.{} from {:?}", ver.0, ver.1, bundled_standalone);
+                return Ok(bundled_standalone);
+            }
+        }
+    }
+
     // Check if a bundled venv exists in the Resources/core directory (packaged .app)
     let bundled_python = core_dir().join(".venv").join("bin").join("python3");
     if bundled_python.exists() {
@@ -510,6 +536,11 @@ fn stop_process(target: &Mutex<Option<Child>>) -> Result<bool, String> {
 }
 
 #[tauri::command]
+fn startup_status(state: State<'_, StartupStatus>) -> String {
+    state.phase.read().map(|s| s.clone()).unwrap_or_else(|_| "unknown".to_string())
+}
+
+#[tauri::command]
 fn start_core(app: AppHandle, state: State<'_, ProcessState>) -> Result<bool, String> {
     start_process(&app, &state.core, "app.py", "core.log")
 }
@@ -666,8 +697,10 @@ fn handle_tray(app: &AppHandle) -> tauri::Result<()> {
 pub fn run() {
     tauri::Builder::default()
         .manage(ProcessState::default())
+        .manage(StartupStatus::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let app_handle = app.handle();
             handle_tray(&app_handle)?;
@@ -676,27 +709,41 @@ pub fn run() {
             let app_handle_clone = app_handle.clone();
             std::thread::spawn(move || {
                 let state = app_handle_clone.state::<ProcessState>();
+                let status = app_handle_clone.state::<StartupStatus>();
+
+                let set_phase = |phase: &str| {
+                    if let Ok(mut w) = status.phase.write() {
+                        *w = phase.to_string();
+                    }
+                };
 
                 // Ensure Python venv is ready before spawning processes
                 eprintln!("🔧 core_dir = {:?}", core_dir());
                 eprintln!("🔧 python   = {:?}", python_command_with_app(&app_handle_clone));
+                set_phase("setup_venv");
                 match setup_venv(&app_handle_clone) {
                     Ok(py) => eprintln!("✅ Venv ready: {:?}", py),
-                    Err(e) => eprintln!("⚠️  Venv setup failed: {} — will try system Python", e),
+                    Err(e) => {
+                        eprintln!("⚠️  Venv setup failed: {} — will try system Python", e);
+                        set_phase(&format!("venv_error:{}", e));
+                    }
                 }
 
                 // Start Core API
+                set_phase("starting_core");
                 match start_process(&app_handle_clone, &state.core, "app.py", "core.log") {
                     Ok(started) => {
                         if started {
                             eprintln!("✅ Core API process started");
-                            
+                            set_phase("waiting_core");
+
                             // Wait for Core API to be ready (check port 8787)
                             let mut retries = 0;
                             let max_retries = 30; // 30 seconds timeout
                             while retries < max_retries {
                                 if is_port_listening(8787) {
                                     eprintln!("✅ Core API is ready on port 8787");
+                                    set_phase("ready");
                                     
                                     // Start Worker after Core API is ready
                                     std::thread::sleep(std::time::Duration::from_secs(1));
@@ -717,6 +764,7 @@ pub fn run() {
                                 std::thread::sleep(std::time::Duration::from_secs(1));
                                 retries += 1;
                             }
+                            set_phase("core_timeout");
                             eprintln!("⚠️  Core API did not become ready within {} seconds", max_retries);
                         } else {
                             eprintln!("ℹ️  Core API was already running");
@@ -738,6 +786,7 @@ pub fn run() {
                         }
                     }
                     Err(e) => {
+                        set_phase(&format!("core_error:{}", e));
                         eprintln!("⚠️  Failed to start Core API: {}", e);
                         eprintln!("   Please check Python environment and core directory");
                         eprintln!("   Core dir: {:?}", core_dir());
@@ -762,6 +811,7 @@ pub fn run() {
             start_worker,
             stop_worker,
             process_status,
+            startup_status,
             read_logs,
             clear_logs,
             load_mcp_config,
