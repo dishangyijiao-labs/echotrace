@@ -38,10 +38,11 @@
       "../../core/worker.py": "core/worker.py",
       "../../core/download_manager.py": "core/download_manager.py",
       "../../core/errors.py": "core/errors.py",
+      "../../core/llm_service.py": "core/llm_service.py",
       "../../core/requirements.txt": "core/requirements.txt",
       "../../core/db": "core/db",
       "../../core/pipeline": "core/pipeline",
-      "../../core/mcp_gateway": "core/mcp_gateway"
+      "../../core/rag": "core/rag"
     }
   }
 }

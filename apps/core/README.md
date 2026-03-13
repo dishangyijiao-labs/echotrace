@@ -40,7 +40,7 @@ The worker polls for queued jobs and writes transcripts to the local SQLite data
 Requirements:
 - `ffmpeg` available in PATH for audio extraction.
 
-## MCP Summaries
+## LLM Summaries
 
-Providers are configured in `apps/core/mcp_gateway/providers.json`.
-Set `MCP_PROVIDERS_PATH` to override the file location and point each provider to an MCP server.
+Providers (OpenAI, Claude, DeepSeek, Doubao, local Ollama) are configured in `llm_service.py`.
+Set the corresponding API key environment variable for each provider.

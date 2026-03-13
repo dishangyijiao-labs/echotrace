@@ -10,20 +10,31 @@ from typing import Any
 
 import httpx
 
-# Base URLs for known providers
-_BASE_URLS: dict[str, str] = {
-    "openai": "https://api.openai.com/v1",
-    "deepseek": "https://api.deepseek.com/v1",
-    "doubao": "https://ark.cn-beijing.volces.com/api/v3",
-    "local": "http://127.0.0.1:11434/v1",
-}
-
-# Environment variable names for API keys
-_API_KEY_ENV: dict[str, str] = {
-    "openai": "OPENAI_API_KEY",
-    "deepseek": "DEEPSEEK_API_KEY",
-    "claude": "ANTHROPIC_API_KEY",
-    "doubao": "DOUBAO_API_KEY",
+# Provider configurations (replaces mcp_gateway/providers.json)
+PROVIDERS: dict[str, dict] = {
+    "openai": {
+        "base_url": "https://api.openai.com/v1",
+        "models": ["gpt-4o-mini", "gpt-4o", "o3-mini"],
+        "api_key_env": "OPENAI_API_KEY",
+    },
+    "claude": {
+        "models": ["claude-3-5-sonnet", "claude-3-5-haiku"],
+        "api_key_env": "ANTHROPIC_API_KEY",
+    },
+    "deepseek": {
+        "base_url": "https://api.deepseek.com/v1",
+        "models": ["deepseek-chat", "deepseek-reasoner"],
+        "api_key_env": "DEEPSEEK_API_KEY",
+    },
+    "doubao": {
+        "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+        "models": ["doubao-pro-128k", "doubao-lite-32k"],
+        "api_key_env": "DOUBAO_API_KEY",
+    },
+    "local": {
+        "base_url": "http://127.0.0.1:11434/v1",
+        "models": ["qwen2.5:7b", "llama3.1:8b"],
+    },
 }
 
 _PROMPT_TEMPLATES: dict[str, str] = {
@@ -33,21 +44,12 @@ _PROMPT_TEMPLATES: dict[str, str] = {
 }
 
 
-def _get_api_key(provider_name: str, provider_config: dict[str, Any]) -> str:
-    """Resolve API key from provider config env, or well-known env vars."""
-    # Check provider-specific env overrides in config
-    env_map = provider_config.get("env") or {}
-    for key, val in env_map.items():
-        if "key" in key.lower() and val:
-            return val
-
-    # Fallback to well-known env vars
-    env_name = _API_KEY_ENV.get(provider_name)
+def _get_api_key(provider_name: str) -> str:
+    """Resolve API key from environment variables."""
+    cfg = PROVIDERS.get(provider_name, {})
+    env_name = cfg.get("api_key_env")
     if env_name:
-        key = os.environ.get(env_name, "")
-        if key:
-            return key
-
+        return os.environ.get(env_name, "")
     return ""
 
 
@@ -106,43 +108,33 @@ async def _call_claude(api_key: str, model: str, prompt: str) -> str:
 
 async def llm_summarize(
     provider_name: str,
-    provider_config: dict[str, Any],
     model: str,
     text: str,
     prompt_type: str = "summary",
+    **_kwargs: Any,
 ) -> str:
-    """
-    Generate a summary using the configured LLM provider.
+    """Generate a summary using the configured LLM provider."""
+    cfg = PROVIDERS.get(provider_name)
+    if not cfg:
+        raise ValueError(f"Unknown provider: {provider_name}")
 
-    Args:
-        provider_name: e.g. "deepseek", "openai", "claude", "doubao", "local"
-        provider_config: provider entry from mcp-providers.json
-        model: model name
-        text: transcript text to summarize
-        prompt_type: "summary" | "outline" | "action_items"
-
-    Returns:
-        Generated summary text.
-    """
     template = _PROMPT_TEMPLATES.get(prompt_type, _PROMPT_TEMPLATES["summary"])
-    # Truncate very long texts to avoid token limits
     truncated = text[:12000] if len(text) > 12000 else text
     prompt = template.format(text=truncated)
 
-    api_key = _get_api_key(provider_name, provider_config)
+    api_key = _get_api_key(provider_name)
 
     if provider_name == "claude":
         if not api_key:
             raise ValueError("ANTHROPIC_API_KEY not set. Configure it in environment variables.")
         return await _call_claude(api_key, model, prompt)
 
-    # All other providers use OpenAI-compatible API
-    base_url = provider_config.get("base_url") or _BASE_URLS.get(provider_name)
+    base_url = cfg.get("base_url")
     if not base_url:
         raise ValueError(f"No base_url configured for provider '{provider_name}'")
 
-    if not api_key and provider_name not in ("local",):
-        env_name = _API_KEY_ENV.get(provider_name, f"{provider_name.upper()}_API_KEY")
+    if not api_key and provider_name != "local":
+        env_name = cfg.get("api_key_env", f"{provider_name.upper()}_API_KEY")
         raise ValueError(f"API key not set. Set {env_name} in environment variables.")
 
     return await _call_openai_compatible(base_url, api_key, model, prompt)

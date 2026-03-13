@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
 import io
 import json
@@ -35,8 +36,7 @@ from pydantic import BaseModel
 from db.init_db import init_db
 from download_manager import download_manager, DownloadStatus
 from errors import E, ErrorResponse, raise_api_error, sanitize_error, build_error
-from mcp_gateway.registry import load_providers
-from llm_service import llm_summarize
+from llm_service import llm_summarize, PROVIDERS
 from pipeline.model_manager import get_model_info, is_model_downloaded, download_model
 
 _app_log = logging.getLogger("echotrace.app")
@@ -177,6 +177,12 @@ class MediaImportRequest(BaseModel):
 _VALID_ENGINES = {"whisper"}
 _VALID_MODELS = {"tiny", "base", "small", "medium", "large-v2", "large-v3"}
 _VALID_DEVICES = {"cpu", "cuda", "auto"}
+
+# Estimated peak RAM (MB) per model during transcription (measured via benchmark)
+_MODEL_RAM_MB = {
+    "tiny": 600, "base": 800, "small": 1200,
+    "medium": 2800, "large-v2": 4500, "large-v3": 4500,
+}
 
 
 class JobCreateRequest(BaseModel):
@@ -341,6 +347,36 @@ def list_jobs() -> dict:
     return {"ok": True, "data": [dict(row) for row in rows]}
 
 
+@app.get("/events/jobs")
+async def job_events():
+    """SSE stream: push job list whenever data changes (checked every 1s)."""
+
+    async def _generate():
+        last_snapshot = None
+        while True:
+            with _connect(DEFAULT_DB_PATH) as conn:
+                rows = conn.execute(
+                    """
+                    SELECT id, media_id, status, engine, model, device,
+                           progress, processed_segments, total_segments,
+                           error, created_at, updated_at
+                    FROM job
+                    ORDER BY id DESC
+                    """
+                ).fetchall()
+            snapshot = json.dumps([dict(r) for r in rows], ensure_ascii=False)
+            if snapshot != last_snapshot:
+                yield f"data: {snapshot}\n\n"
+                last_snapshot = snapshot
+            await asyncio.sleep(1)
+
+    return StreamingResponse(
+        _generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 @app.get("/transcripts")
 def list_transcripts() -> dict:
     with _connect(DEFAULT_DB_PATH) as conn:
@@ -471,14 +507,11 @@ def search(
 
 @app.post("/summarize")
 async def summarize(payload: SummarizeRequest) -> dict:
-    providers = load_providers()
-    provider = providers.get(payload.provider)
-    if not provider:
+    if payload.provider not in PROVIDERS:
         raise HTTPException(status_code=400, detail="unknown provider")
 
     summary = await llm_summarize(
         provider_name=payload.provider,
-        provider_config=provider,
         model=payload.model,
         text=payload.text,
         prompt_type=payload.prompt_type,
@@ -656,6 +689,29 @@ def get_model_status(model_name: str) -> dict:
     }
 
 
+@app.get("/models/{model_name}/preflight")
+def model_preflight(model_name: str) -> dict:
+    """Check if the system has enough memory to run this model."""
+    try:
+        import psutil
+        available_mb = psutil.virtual_memory().available / (1024 ** 2)
+    except ImportError:
+        return {"ok": True, "warning": None}
+
+    required_mb = _MODEL_RAM_MB.get(model_name, 0)
+    if not required_mb:
+        return {"ok": True, "warning": None}
+
+    enough = available_mb >= required_mb
+    return {
+        "ok": True,
+        "enough": enough,
+        "available_mb": round(available_mb),
+        "required_mb": required_mb,
+        "warning": None if enough else f"available {round(available_mb)} MB < required ~{required_mb} MB",
+    }
+
+
 @app.post("/models/{model_name}/download")
 async def start_model_download(model_name: str, device: str = "cpu") -> dict:
     """Enqueue an async background model download. Poll /models/{name}/download/status or
@@ -772,6 +828,8 @@ def rag_status() -> dict:
 
 _DEFAULT_APP_SETTINGS = {
     "semantic_search_enabled": False,
+    "auto_transcribe": True,
+    "default_model": "small",
 }
 
 

@@ -56,7 +56,7 @@ apps/core/data/*.db-wal
 apps/core/data/*.sqlite
 apps/core/data/*.sqlite3
 apps/core/exports/
-apps/core/mcp_gateway/providers.json
+apps/core/mcp_gateway/
 
 # Desktop (Tauri) specific
 apps/desktop/src-tauri/target/
