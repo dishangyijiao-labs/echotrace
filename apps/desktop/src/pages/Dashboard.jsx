@@ -175,15 +175,15 @@ function Dashboard() {
           </button>
         </div>
         <div className="mt-5 grid grid-cols-3 gap-3 text-center">
-          <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
+          <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm cursor-pointer hover:bg-white/20 transition-colors" onClick={() => navigate("/resources")}>
             <div className="text-2xl font-bold">{stats.mediaCount}</div>
             <div className="text-xs text-blue-100 mt-0.5">{t('dashboard.stats.mediaCount')}</div>
           </div>
-          <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
+          <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm cursor-pointer hover:bg-white/20 transition-colors" onClick={() => navigate("/results")}>
             <div className="text-2xl font-bold">{stats.transcriptCount}</div>
             <div className="text-xs text-blue-100 mt-0.5">{t('dashboard.stats.searchableContent')}</div>
           </div>
-          <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
+          <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm cursor-pointer hover:bg-white/20 transition-colors" onClick={() => navigate("/tasks")}>
             <div className="text-2xl font-bold">
               {stats.activeJobs > 0 ? stats.activeJobs : <CheckCircle className="w-6 h-6 mx-auto" />}
             </div>
@@ -303,14 +303,14 @@ function Dashboard() {
 
       {/* Stats + Service */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="card border-blue-200 bg-blue-50/50 flex items-center gap-4">
+        <div className="card border-blue-200 bg-blue-50/50 flex items-center gap-4 cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/resources")}>
           <Folder className="w-8 h-8 text-blue-500 shrink-0" />
           <div>
             <p className="text-xs text-gray-500">{t('dashboard.statsCards.resourceFiles')}</p>
             <p className="text-2xl font-semibold text-gray-900">{stats.mediaCount}</p>
           </div>
         </div>
-        <div className="card border-emerald-200 bg-emerald-50/50 flex items-center gap-4">
+        <div className="card border-emerald-200 bg-emerald-50/50 flex items-center gap-4 cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/results")}>
           <FileText className="w-8 h-8 text-emerald-500 shrink-0" />
           <div>
             <p className="text-xs text-gray-500">{t('dashboard.statsCards.transcriptionResults')}</p>
