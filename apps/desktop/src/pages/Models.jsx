@@ -122,12 +122,12 @@ function Models() {
       </div>
 
       {/* Privacy Warning Banner */}
-      <div className="bg-yellow-50 border-2 border-yellow-400 rounded-xl p-4">
+      <div className="card">
         <div className="flex items-start gap-3">
-          <AlertTriangle className="w-6 h-6 text-yellow-600 flex-shrink-0 mt-0.5" />
+          <AlertTriangle className="w-6 h-6 text-gray-400 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <h3 className="font-semibold text-yellow-900 mb-2">{t('models.privacy.warningTitle')}</h3>
-            <div className="space-y-2 text-sm text-yellow-800">
+            <h3 className="font-semibold text-gray-900 mb-2">{t('models.privacy.warningTitle')}</h3>
+            <div className="space-y-2 text-sm text-gray-600">
               <div className="flex items-start gap-2">
                 <Cloud className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 <p>
@@ -143,11 +143,11 @@ function Models() {
                 </p>
               </div>
             </div>
-            <div className="mt-3 p-3 bg-yellow-100 rounded-lg">
-              <p className="text-xs text-yellow-900 font-medium">
+            <div className="mt-3 p-3 bg-gray-50 border rounded-lg">
+              <p className="text-xs text-gray-900 font-medium">
                 <strong>{t('models.privacy.importantNote')}</strong>
               </p>
-              <p className="text-xs text-yellow-800 mt-1">
+              <p className="text-xs text-gray-600 mt-1">
                 {t('models.privacy.detailNote')}
               </p>
             </div>
@@ -164,28 +164,22 @@ function Models() {
           return (
             <div
               key={provider}
-              className={`card space-y-4 ${isLocal ? 'border-2 border-green-300 bg-green-50' : 'border-2 border-orange-200 bg-orange-50'}`}
+              className="card space-y-4"
             >
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-2">
                     <h2 className="text-lg font-semibold text-gray-900">{provider}</h2>
-                    {isLocal ? (
-                      <span className="px-2 py-0.5 bg-green-600 text-white text-xs font-medium rounded-full">
-                        {t('models.local')}
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 bg-orange-600 text-white text-xs font-medium rounded-full">
-                        {t('models.cloud')}
-                      </span>
-                    )}
+                    <span className="px-2 py-0.5 bg-gray-200 text-gray-700 text-xs font-medium rounded-full">
+                      {isLocal ? t('models.local') : t('models.cloud')}
+                    </span>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
                     {info.type === "sse" ? info.url : info.command}
                   </p>
                 </div>
-                {!isLocal && <Cloud className="w-5 h-5 text-orange-500" />}
-                {isLocal && <Shield className="w-5 h-5 text-green-600" />}
+                {!isLocal && <Cloud className="w-5 h-5 text-gray-400" />}
+                {isLocal && <Shield className="w-5 h-5 text-gray-400" />}
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700">{t('models.modelList')}</label>

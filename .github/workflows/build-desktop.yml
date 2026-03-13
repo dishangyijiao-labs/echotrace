@@ -22,27 +22,11 @@ jobs:
           - platform: macos-latest   # Apple Silicon (arm64); Intel via Rosetta 2
             args: --target aarch64-apple-darwin
             rust-target: aarch64-apple-darwin
-          - platform: ubuntu-22.04
-            args: ""
-            rust-target: ""
-          - platform: windows-latest
-            args: ""
-            rust-target: ""
 
     runs-on: ${{ matrix.platform }}
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Linux system dependencies
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf
 
       - uses: actions/setup-node@v4
         with:
