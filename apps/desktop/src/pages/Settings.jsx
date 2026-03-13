@@ -4,6 +4,13 @@ import { useTranslation } from "react-i18next";
 import { DEFAULT_SETTINGS, loadSettings, saveSettings } from "../lib/settings";
 import api from "../lib/api";
 
+const MODEL_OPTIONS = [
+  { value: "tiny",     label: "tiny" },
+  { value: "small",    label: "small" },
+  { value: "medium",   label: "medium" },
+  { value: "large-v2", label: "large-v2" },
+];
+
 function Settings() {
   const { t } = useTranslation();
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
@@ -12,6 +19,11 @@ function Settings() {
   const [semanticLoading, setSemanticLoading] = useState(true);
   const [semanticSaving, setSemanticSaving] = useState(false);
   const [semanticMsg, setSemanticMsg] = useState(null);
+
+  // Server-side settings
+  const [autoTranscribe, setAutoTranscribe] = useState(true);
+  const [defaultModel, setDefaultModel] = useState("small");
+  const [transcribeMsg, setTranscribeMsg] = useState(null);
 
   useEffect(() => {
     setSettings(loadSettings());
@@ -25,7 +37,10 @@ function Settings() {
     Promise.all([api.get("/rag/status"), api.get("/settings")])
       .then(([ragRes, settingsRes]) => {
         setRagAvailable(ragRes.data?.available ?? false);
-        setSemanticEnabled(settingsRes.data?.data?.semantic_search_enabled ?? false);
+        const data = settingsRes.data?.data ?? {};
+        setSemanticEnabled(data.semantic_search_enabled ?? false);
+        setAutoTranscribe(data.auto_transcribe ?? true);
+        setDefaultModel(data.default_model ?? "small");
       })
       .catch(() => {})
       .finally(() => setSemanticLoading(false));
@@ -49,11 +64,71 @@ function Settings() {
     }
   };
 
+  const patchTranscribeSettings = async (patch) => {
+    setTranscribeMsg(null);
+    try {
+      const res = await api.patch("/settings", patch);
+      const data = res.data?.data ?? {};
+      setAutoTranscribe(data.auto_transcribe ?? true);
+      setDefaultModel(data.default_model ?? "small");
+      setTranscribeMsg({ ok: true });
+      setTimeout(() => setTranscribeMsg(null), 2000);
+    } catch {
+      setTranscribeMsg({ ok: false });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">{t('settings.title')}</h1>
         <p className="mt-2 text-gray-600">{t('settings.subtitle')}</p>
+      </div>
+
+      {/* Transcription settings */}
+      <div className="card space-y-4">
+        <h2 className="text-lg font-semibold text-gray-900">{t('settings.transcribe.title')}</h2>
+
+        <div className="flex items-center justify-between border rounded-xl p-4">
+          <div>
+            <p className="text-sm font-medium text-gray-900">{t('settings.transcribe.autoTranscribe')}</p>
+            <p className="text-xs text-gray-500">{t('settings.transcribe.autoTranscribeDesc')}</p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={autoTranscribe}
+            onClick={() => patchTranscribeSettings({ auto_transcribe: !autoTranscribe })}
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${
+              autoTranscribe ? "bg-purple-600" : "bg-gray-200"
+            }`}
+          >
+            <span
+              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform ${
+                autoTranscribe ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+
+        <div className="border rounded-xl p-4 space-y-2">
+          <label className="text-sm font-medium text-gray-700">{t('settings.transcribe.defaultModel')}</label>
+          <select
+            className="form-input"
+            value={defaultModel}
+            onChange={(e) => patchTranscribeSettings({ default_model: e.target.value })}
+          >
+            {MODEL_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {transcribeMsg && (
+          <p className={`text-xs ${transcribeMsg.ok ? "text-green-600" : "text-red-500"}`}>
+            {transcribeMsg.ok ? t('settings.transcribe.saved') : t('settings.search.semanticFailed')}
+          </p>
+        )}
       </div>
 
       {/* Playback settings */}

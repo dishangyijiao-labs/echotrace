@@ -207,6 +207,7 @@
       "minutes": "约 {{m}} 分钟",
       "hours": "约 {{h}} 小时"
     },
+    "memWarning": "当前可用内存 {{available}} MB，该模型建议 {{required}} MB，可能导致转录缓慢或失败。",
     "batch": {
       "title": "批量新建任务",
       "selectAll": "全选",
@@ -304,6 +305,13 @@
       "autoPlayDesc": "跳转到时间轴后立即播放",
       "loopSegment": "循环当前分段",
       "loopSegmentDesc": "播放到分段结尾后自动回放"
+    },
+    "transcribe": {
+      "title": "转录设置",
+      "autoTranscribe": "导入即转录",
+      "autoTranscribeDesc": "导入媒体文件后自动创建转录任务，无需手动操作。",
+      "defaultModel": "默认模型",
+      "saved": "已保存"
     },
     "search": {
       "title": "搜索设置",

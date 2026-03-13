@@ -207,6 +207,7 @@
       "minutes": "~{{m}} min",
       "hours": "~{{h}} hr"
     },
+    "memWarning": "Available memory {{available}} MB, this model needs ~{{required}} MB. Transcription may be slow or fail.",
     "batch": {
       "title": "Create Batch Tasks",
       "selectAll": "Select All",
@@ -304,6 +305,13 @@
       "autoPlayDesc": "Start playing immediately after jumping to a timeline position",
       "loopSegment": "Loop Current Segment",
       "loopSegmentDesc": "Automatically replay when the segment ends"
+    },
+    "transcribe": {
+      "title": "Transcription Settings",
+      "autoTranscribe": "Auto-transcribe on Import",
+      "autoTranscribeDesc": "Automatically create transcription jobs when media files are imported.",
+      "defaultModel": "Default Model",
+      "saved": "Saved"
     },
     "search": {
       "title": "Search Settings",

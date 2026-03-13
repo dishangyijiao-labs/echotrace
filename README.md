@@ -1,132 +1,161 @@
 # EchoTrace
 
-**"我记得某个视频里提过这件事，但到底是哪一段？"**
+[中文文档](README.zh-CN.md)
 
-EchoTrace 帮你把音视频文件转成可搜索的文字，在几秒内定位到任意一句话。完全本地运行，数据不离开你的电脑。
+**"I remember someone said that in a video — but which one, and when?"**
 
-## 谁需要它？
+EchoTrace turns your audio and video files into searchable text, letting you find any sentence in seconds. Fully local — your data never leaves your machine.
 
-| 角色 | 场景 |
-|------|------|
-| 短视频团队 | 从几十条长视频里找到所有提到某个话题的片段，批量切片 |
-| 播客主播 | 回溯往期节目："我第几期聊过 XX？" |
-| 记者 / 研究者 | 在大量采访录音中按关键词检索证据 |
-| 律师 / 合规 | 从庭审录音、会议录音中快速提取关键陈述 |
-| 课程制作者 | 定位课程视频中的知识点，生成字幕 |
+## Who is it for?
+
+| Role | Use case |
+|------|----------|
+| Short-video teams | Find every mention of a topic across dozens of long videos, batch-clip |
+| Podcasters | Look up past episodes: "Which episode did I talk about XX?" |
+| Journalists / Researchers | Search interview recordings by keyword for evidence |
+| Legal / Compliance | Extract key statements from court or meeting recordings |
+| Course creators | Locate knowledge points in lecture videos, generate subtitles |
 
 ### Before / After
 
 ```
-任务：从 50 条长视频中找出所有关于 "人工智能" 的片段
+Task: Find all clips about "artificial intelligence" across 50 long videos
 
-手动翻看：~2 小时
-EchoTrace：~10 秒
-  1. 搜索 "人工智能"
-  2. 看到所有命中结果 + 时间戳
-  3. 点击跳转播放 → 确认 → 导出
+Manual scrubbing: ~2 hours
+EchoTrace: ~10 seconds
+  1. Search "artificial intelligence"
+  2. See all matching results + timestamps
+  3. Click to jump, confirm, export
 ```
 
-## 核心功能
+## Features
 
-### 本地转录
-- 基于 OpenAI Whisper，6 种模型可选（tiny → large-v3），按精度和速度自由取舍
-- 支持 MP3 / WAV / MP4 / MOV / MKV / AVI / FLAC 等主流格式，单文件最大 10 GB
-- 拖拽导入，批量提交，后台队列处理，转录完成系统通知
+### Local Transcription
+- Powered by OpenAI Whisper — 6 models to choose from (tiny → large-v3), balancing speed and accuracy
+- Supports MP3 / WAV / MP4 / MOV / MKV / AVI / FLAC and more, up to 10 GB per file
+- Drag-and-drop import, batch submission, background queue processing, system notifications on completion
 
-### 搜索
-- **关键词搜索** — SQLite FTS5 全文检索，毫秒级响应
-- **语义搜索** — 基于向量嵌入，用自然语言描述你想找的内容（"那段关于创业失败的反思"）
-- **混合模式** — 关键词 + 语义同时检索，结果按相关性排序
-- 高级筛选：日期范围、时长、语言、文件类型、排序方式
+### Search
+- **Keyword search** — SQLite FTS5 full-text search, millisecond response
+- **Semantic search** — Vector embedding-based, describe what you're looking for in natural language ("that part about reflecting on startup failure")
+- **Hybrid mode** — Keyword + semantic search combined, results ranked by relevance
+- Advanced filters: date range, duration, language, file type, sort order
 
-### AI 分析（可选）
-- 接入 GPT-4o / Claude / DeepSeek / Ollama 等大模型
-- 智能摘要：一键总结整段录音的核心内容
-- 跨文件问答："这几期节目里嘉宾对 XX 话题有哪些不同观点？"
+### AI Analysis (optional)
+- Connect to GPT-4o / Claude / DeepSeek / Ollama and other LLMs
+- Smart summaries: one-click summary of an entire recording
+- Cross-file Q&A: "What different perspectives did guests have on XX across these episodes?"
 
-### 播放与导出
-- 内置播放器，点击搜索结果直接跳转到对应时间戳
-- 逐句同步高亮，支持变速播放（0.5x ~ 2.0x）、单句循环
-- 导出格式：TXT / SRT 字幕 / Markdown，支持批量导出 ZIP
+### Playback & Export
+- Built-in player — click a search result to jump to the exact timestamp
+- Sentence-level sync highlighting, variable speed playback (0.5x – 2.0x), single-sentence loop
+- Export formats: TXT / SRT subtitles / Markdown, batch export as ZIP
 
-### 隐私
-- 100% 本地处理，不上传任何数据
-- 无账号、无遥测、无追踪
-- 断网也能用（AI 分析除外）
+### Privacy
+- 100% local processing, no data uploaded
+- No accounts, no telemetry, no tracking
+- Works offline (except AI analysis)
 
-## 快速开始
+## Getting Started
 
-### 环境要求
+### Prerequisites
 
 - Python 3.12
 - Node.js 20+
 - FFmpeg
+- macOS 12+ (macOS only for now)
 
-### 安装与运行
+### System Requirements
+
+Measured on Apple M4 / 32 GB using `apps/core/benchmark.py`. Results will vary on different hardware.
+
+| | Minimum | Recommended | High quality |
+|---|---|---|---|
+| **Whisper model** | tiny | small (default) | medium / large-v2 |
+| **RAM** | 4 GB | 8 GB | 16 GB |
+| **Disk** | 1 GB | 2 GB | 5 GB |
+| **CPU** | Dual-core | Quad-core | 8+ cores |
+
+**Measured peak memory per model (30s audio):**
+
+| Model | Disk size | Peak RAM | Peak CPU | Time (30s audio) |
+|-------|-----------|----------|----------|-------------------|
+| tiny | 75 MB | ~600 MB | ~180% | ~7s |
+| small | 466 MB | ~1.2 GB | ~400% | ~1.7s |
+| medium | 1.5 GB | ~2.8 GB | — | — |
+| large-v2 | 2.9 GB | ~4.5 GB | — | — |
+
+> The tiny model is fastest but has poor transcription quality — not recommended for real use. The small model offers the best balance of speed and accuracy.
+>
+> Enabling semantic search adds ~150 MB for the embedding model (bge-small-zh-v1.5, 102 MB on disk).
+>
+> The app automatically checks available memory when you select a model and warns if it may be insufficient.
+
+### Install & Run
 
 ```bash
-# 1. 配置 Python 环境
+# 1. Set up Python environment
 ./setup-python-env.sh
 
-# 2. 打包桌面应用
+# 2. Build the desktop app
 cd apps/desktop
 ./rebuild-package.sh
 
-# 3. 启动
+# 3. Launch
 open src-tauri/target/release/bundle/macos/EchoTrace.app
 ```
 
-应用启动后会自动运行后端服务，无需手动启动。首次使用会引导你下载 Whisper 模型。
+The app starts the backend automatically — no manual setup needed. On first launch you'll be guided to download a Whisper model.
 
-## 技术架构
+## Architecture
 
-| 层 | 技术 |
-|----|------|
-| 桌面壳 | Tauri 2.0 (Rust) |
-| 前端 | React + TailwindCSS + i18next |
-| 后端 API | FastAPI (Python) |
-| 转录引擎 | faster-whisper + FFmpeg |
-| 数据库 | SQLite + FTS5 |
+| Layer | Technology |
+|-------|-----------|
+| Desktop shell | Tauri 2.0 (Rust) |
+| Frontend | React + TailwindCSS + i18next |
+| Backend API | FastAPI (Python) |
+| Transcription | faster-whisper + FFmpeg |
+| Database | SQLite + FTS5 |
 | AI / RAG | LangChain + ChromaDB + sentence-transformers |
 
-详见 [Architecture](docs/ARCHITECTURE.md)。
+See [Architecture](docs/ARCHITECTURE.md) for details.
 
-## 开发
+## Development
 
 ```bash
-# 启动后端
+# Start backend
 cd apps/core && source .venv/bin/activate && python app.py
 
-# 启动 Worker（另一个终端）
+# Start worker (separate terminal)
 python worker.py
 
-# 启动桌面应用（另一个终端）
+# Start desktop app (separate terminal)
 cd apps/desktop && npm run tauri dev
 ```
 
-## 环境变量
+## Environment Variables
 
-| 变量 | 说明 | 默认值 |
-|------|------|--------|
-| `ECHOTRACE_CORE_DIR` | Core 目录路径 | `../core` |
-| `ECHOTRACE_PYTHON` | Python 可执行文件 | `python3.12` |
-| `ECHOTRACE_FFMPEG` | FFmpeg 可执行文件 | 自动检测 |
-| `MCP_PROVIDERS_PATH` | MCP 配置文件路径 | — |
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ECHOTRACE_CORE_DIR` | Core directory path | `../core` |
+| `ECHOTRACE_PYTHON` | Python executable | `python3.12` |
+| `ECHOTRACE_FFMPEG` | FFmpeg executable | Auto-detected |
+| `MCP_PROVIDERS_PATH` | MCP config file path | — |
 
-## 文档
+## Documentation
 
-- [架构说明](docs/ARCHITECTURE.md)
-- [隐私声明](docs/PRIVACY.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Privacy Policy](docs/PRIVACY.md)
 - [Core API](apps/core/README.md)
 - [Desktop App](apps/desktop/README.md)
 
-## 参与贡献
+## Contributing
 
-欢迎提交 Issue 和 Pull Request，详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+Issues and Pull Requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## 安全
+## Security
 
-发现安全漏洞请勿公开提交 Issue，请按 [SECURITY.md](SECURITY.md) 中的流程报告。
+Please do not open public issues for security vulnerabilities. Follow the process in [SECURITY.md](SECURITY.md).
 
 ## License
 
