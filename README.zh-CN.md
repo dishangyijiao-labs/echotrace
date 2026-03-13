@@ -146,8 +146,6 @@ cd apps/desktop && npm run tauri dev
 
 - [架构说明](docs/ARCHITECTURE.md)
 - [隐私声明](docs/PRIVACY.md)
-- [Core API](apps/core/README.md)
-- [Desktop App](apps/desktop/README.md)
 
 ## 参与贡献
 

@@ -146,8 +146,6 @@ cd apps/desktop && npm run tauri dev
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Privacy Policy](docs/PRIVACY.md)
-- [Core API](apps/core/README.md)
-- [Desktop App](apps/desktop/README.md)
 
 ## Contributing
 
