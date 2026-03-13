@@ -59,17 +59,17 @@ function AppLayout() {
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         } ${sidebarCollapsed ? "lg:w-16" : "lg:w-64"} w-64`}
       >
-        <div className="flex items-center justify-between h-16 px-3 border-b border-gray-200">
+        <div className="flex items-center h-[38px] pl-[76px] pr-3 border-b border-gray-200" data-tauri-drag-region>
           <button
             type="button"
-            className="hidden lg:flex p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+            className="hidden lg:flex p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100"
             onClick={toggleSidebarCollapsed}
             aria-label={sidebarCollapsed ? "展开导航" : "折叠导航"}
           >
             {sidebarCollapsed ? (
-              <PanelLeftOpen className="w-5 h-5" />
+              <PanelLeftOpen className="w-4 h-4" />
             ) : (
-              <PanelLeftClose className="w-5 h-5" />
+              <PanelLeftClose className="w-4 h-4" />
             )}
           </button>
           <button
@@ -122,8 +122,8 @@ function AppLayout() {
       ) : null}
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white shadow-sm border-b border-gray-200">
-          <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
+        <header className="bg-white shadow-sm border-b border-gray-200" data-tauri-drag-region>
+          <div className="flex items-center justify-between h-[38px] px-4 sm:px-6 lg:px-8" data-tauri-drag-region>
             <button
               type="button"
               className="p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 lg:hidden"

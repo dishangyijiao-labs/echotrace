@@ -12,7 +12,9 @@
   "app": {
     "windows": [
       {
-        "title": "EchoTrace - Video Archive Search Engine",
+        "title": "",
+        "hiddenTitle": true,
+        "titleBarStyle": "Overlay",
         "width": 1280,
         "height": 900
       }
