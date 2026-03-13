@@ -120,6 +120,14 @@ cd apps/desktop && npm run tauri dev
 - [Core API](apps/core/README.md)
 - [Desktop App](apps/desktop/README.md)
 
+## 参与贡献
+
+欢迎提交 Issue 和 Pull Request，详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+## 安全
+
+发现安全漏洞请勿公开提交 Issue，请按 [SECURITY.md](SECURITY.md) 中的流程报告。
+
 ## License
 
-MIT
+[MIT](LICENSE)

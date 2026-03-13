@@ -12,7 +12,7 @@
     "dev:worker": "cd apps/core && .venv/bin/python3 worker.py",
     "dev:desktop": "cd apps/desktop && npm run tauri dev",
     "build": "cd apps/desktop && npm run tauri build",
-    "setup:core": "cd apps/core && python3 -m venv .venv && .venv/bin/pip install --upgrade pip && .venv/bin/pip install -r requirements.txt --extra-index-url https://pypi.tuna.tsinghua.edu.cn/simple",
+    "setup:core": "cd apps/core && python3 -m venv .venv && .venv/bin/pip install --upgrade pip && .venv/bin/pip install -r requirements.txt",
     "setup:desktop": "cd apps/desktop && npm install",
     "setup": "npm run setup:core && npm run setup:desktop",
     "clean": "rm -rf apps/core/.venv apps/core/logs apps/desktop/node_modules apps/desktop/logs apps/desktop/src-tauri/target"
