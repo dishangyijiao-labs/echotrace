@@ -43,6 +43,7 @@
       "../../core/db": "core/db",
       "../../core/pipeline": "core/pipeline",
       "../../core/rag": "core/rag",
+      "../../core/python": "core/python",
       "../../core/bin/ffmpeg": "core/bin/ffmpeg",
       "../../core/models": "core/models"
     }
