@@ -346,18 +346,6 @@
       "resultCount": "搜索结果 ({{count}})",
       "fullTextSource": "全文搜索",
       "similarity": "相似度: {{score}}"
-    },
-    "agent": {
-      "title": "AI 智能助手",
-      "requireLLM": "需要配置 LLM API",
-      "placeholder": "向 AI 助手提问（例如：找出所有关于产品设计的片段，并建议如何剪辑成短视频）",
-      "searchAssistant": "搜索助手",
-      "clipAssistant": "剪辑建议助手",
-      "thinking": "AI 思考中...",
-      "send": "发送",
-      "response": "AI 助手回复：",
-      "noResponse": "无响应",
-      "queryFailed": "查询失败："
     }
   },
   "transcriptDetail": {

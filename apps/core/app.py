@@ -11,6 +11,15 @@ import zipfile
 from pathlib import Path
 from typing import List, Optional
 
+# Load .env file if present (simple dotenv without extra dependency)
+_env_file = Path(__file__).with_name(".env")
+if _env_file.is_file():
+    for _line in _env_file.read_text().splitlines():
+        _line = _line.strip()
+        if _line and not _line.startswith("#") and "=" in _line:
+            _k, _, _v = _line.partition("=")
+            os.environ.setdefault(_k.strip(), _v.strip())
+
 # Sanitize NO_PROXY: httpx cannot parse IPv6 CIDR entries (e.g. fd7a:115c:a1e0::/48)
 for _key in ("NO_PROXY", "no_proxy"):
     _val = os.environ.get(_key, "")
@@ -41,7 +50,6 @@ DEFAULT_DB_PATH = Path(_data_dir) / "app.db" if _data_dir else APP_ROOT / "data"
 try:
     from rag.vector_store import get_vector_store, sync_all_transcripts_to_vector
     from rag.retriever import get_retriever
-    from rag.agents import get_search_agent, ClipExtractorAgent
     RAG_AVAILABLE = True
     _app_log.info("RAG modules available")
 except ImportError as e:
@@ -199,11 +207,6 @@ class SemanticSearchRequest(BaseModel):
     query: str
     mode: str = "hybrid"  # "keyword" | "semantic" | "hybrid"
     limit: int = 20
-
-
-class AgentQueryRequest(BaseModel):
-    query: str
-    agent_type: str = "search"  # "search" | "clip_extractor"
 
 
 class BatchExportRequest(BaseModel):
@@ -749,36 +752,6 @@ def semantic_search(payload: SemanticSearchRequest) -> dict:
     return {"ok": True, "data": results, "total": len(results), "mode": payload.mode}
 
 
-@app.post("/agent/query")
-def agent_query(payload: AgentQueryRequest) -> dict:
-    """Agent 智能查询"""
-    _require_rag()
-
-    if payload.agent_type == "search":
-        agent = get_search_agent()
-        response = agent.run(payload.query)
-        return {"ok": True, "response": response, "agent": "search"}
-
-    elif payload.agent_type == "clip_extractor":
-        # 先搜索相关片段
-        retriever = get_retriever(DEFAULT_DB_PATH)
-        search_results = retriever.search(payload.query, mode="hybrid", limit=10)
-
-        # 调用剪辑建议 Agent
-        agent = ClipExtractorAgent()
-        suggestions = agent.suggest_clips(search_results, payload.query)
-
-        return {
-            "ok": True,
-            "response": suggestions,
-            "agent": "clip_extractor",
-            "related_clips": search_results,
-        }
-
-    else:
-        raise HTTPException(status_code=400, detail=f"Unknown agent type: {payload.agent_type}")
-
-
 @app.get("/rag/status")
 def rag_status() -> dict:
     """RAG 模块状态"""
@@ -788,7 +761,6 @@ def rag_status() -> dict:
         "enabled": RAG_ENABLED,
         "features": {
             "semantic_search": RAG_ENABLED,
-            "agent_query": RAG_ENABLED,
             "hybrid_retrieval": RAG_ENABLED,
         } if RAG_ENABLED else {}
     }

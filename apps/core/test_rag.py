@@ -68,42 +68,6 @@ def test_semantic_search():
             print(f"   未找到结果")
 
 
-def test_agent_query():
-    """测试 Agent 查询（需要 OpenAI API Key）"""
-    print("\n=== 测试 Agent 查询 ===")
-    
-    # 检查是否配置了 OpenAI API Key
-    import os
-    if not os.getenv("OPENAI_API_KEY"):
-        print("⚠️  未配置 OPENAI_API_KEY，跳过 Agent 测试")
-        print("   如需测试，请设置: export OPENAI_API_KEY=sk-xxx...")
-        return
-    
-    test_queries = [
-        {"query": "帮我找出所有关于 AI 的内容", "agent_type": "search"},
-    ]
-    
-    for test in test_queries:
-        print(f"\n查询: '{test['query']}' (Agent: {test['agent_type']})")
-        try:
-            response = requests.post(
-                f"{BASE_URL}/agent/query",
-                json=test,
-                timeout=30
-            )
-            data = response.json()
-            
-            if data["ok"]:
-                print(f"✅ Agent 响应:")
-                print(f"   {data['response'][:200]}...")
-            else:
-                print(f"❌ 查询失败: {data}")
-        except requests.exceptions.Timeout:
-            print("⏱️  请求超时（Agent 处理时间较长）")
-        except Exception as e:
-            print(f"❌ 错误: {str(e)}")
-
-
 def main():
     print("🚀 EchoTrace RAG 功能测试\n")
     
@@ -118,9 +82,6 @@ def main():
     
     # 3. 测试语义搜索
     test_semantic_search()
-    
-    # 4. 测试 Agent（可选）
-    test_agent_query()
     
     print("\n" + "="*50)
     print("✅ 测试完成！")

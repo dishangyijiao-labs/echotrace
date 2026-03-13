@@ -346,18 +346,6 @@
       "resultCount": "Search Results ({{count}})",
       "fullTextSource": "Full-text search",
       "similarity": "Similarity: {{score}}"
-    },
-    "agent": {
-      "title": "AI Assistant",
-      "requireLLM": "Requires LLM API configuration",
-      "placeholder": "Ask the AI assistant (e.g.: Find all clips about product design and suggest how to edit them into a short video)",
-      "searchAssistant": "Search Assistant",
-      "clipAssistant": "Clip Suggestion Assistant",
-      "thinking": "AI thinking...",
-      "send": "Send",
-      "response": "AI Assistant Response:",
-      "noResponse": "No response",
-      "queryFailed": "Query failed: "
     }
   },
   "transcriptDetail": {
