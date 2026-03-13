@@ -31,6 +31,13 @@ yarn-error.log*
 *~
 .claude/
 
+# Environment & Secrets
+.env
+.env.*
+*.key
+*.pem
+*.p12
+
 # OS
 .DS_Store
 Thumbs.db
@@ -58,9 +65,13 @@ apps/desktop/.vite/
 
 # Database files
 *.db
+*.db.bak
 *.sqlite
 *.sqlite3
 *.db-journal
+*.db-shm
+*.db-wal
+chroma_db/
 
 # Media files (large files)
 *.mp4

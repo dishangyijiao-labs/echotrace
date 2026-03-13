@@ -2,7 +2,7 @@
   "name": "echotrace",
   "version": "0.1.0",
   "description": "Your Video Archive Search Engine - Find any moment in seconds, not hours",
-  "private": true,
+  "private": false,
   "workspaces": [
     "apps/desktop"
   ],
@@ -19,7 +19,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git@github.com:dishangyijiao/echotrace.git"
+    "url": "https://github.com/dishangyijiao-labs/echotrace.git"
   },
   "keywords": [
     "transcription",
