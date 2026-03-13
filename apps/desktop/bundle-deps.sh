@@ -79,6 +79,16 @@ if [ ! -f "$PYTHON_DIR/bin/python3" ]; then
         mv "$TMP_DIR" "$PYTHON_DIR"
     fi
 
+    # Strip quarantine/provenance attributes and re-sign binaries for macOS bundling
+    echo "  Stripping quarantine attributes..."
+    find "$PYTHON_DIR" -exec xattr -c {} \; 2>/dev/null || true
+
+    echo "  Re-signing binaries with ad-hoc signature..."
+    find "$PYTHON_DIR" -type f -perm +111 -name "*.dylib" -o -type f -perm +111 -name "*.so" -o -type f -perm +111 -name "python*" | while read f; do
+        codesign --remove-signature "$f" 2>/dev/null || true
+        codesign -s - "$f" 2>/dev/null || true
+    done
+
     echo "  Verifying..."
     "$PYTHON_DIR/bin/python3" --version
 fi
@@ -105,7 +115,7 @@ echo "  Installing core dependencies..."
     "requests>=2.32.0" \
     "faster-whisper>=1.0.0" \
     "opencc-python-reimplemented>=0.1.7" \
-    "httpx>=0.27.0"
+    "httpx[socks]>=0.27.0"
 
 echo "  Python ready: $("$PYTHON_BIN" --version)"
 echo ""
@@ -133,6 +143,11 @@ else
     unzip -o -q "$CACHED_FFMPEG" -d "$CORE_DIR/bin/"
     chmod +x "$FFMPEG_BIN"
 
+    # Strip quarantine and re-sign
+    xattr -c "$FFMPEG_BIN" 2>/dev/null || true
+    codesign --remove-signature "$FFMPEG_BIN" 2>/dev/null || true
+    codesign -s - "$FFMPEG_BIN" 2>/dev/null || true
+
     echo "  Verifying..."
     "$FFMPEG_BIN" -version | head -1
 fi
@@ -150,6 +165,10 @@ if [ -d "$MODEL_DIR" ] && [ "$(ls -A "$MODEL_DIR" 2>/dev/null)" ]; then
 else
     echo "  Downloading via faster-whisper..."
     mkdir -p "$MODEL_DIR"
+
+    # Sanitize NO_PROXY: httpx chokes on IPv6 CIDR entries (e.g. fd7a:115c:a1e0::/48)
+    export NO_PROXY=$(echo "$NO_PROXY" | tr ',' '\n' | grep -v '.*:.*:' | paste -sd ',' -)
+    export no_proxy=$(echo "$no_proxy" | tr ',' '\n' | grep -v '.*:.*:' | paste -sd ',' -)
 
     "$PYTHON_BIN" -c "
 from faster_whisper import WhisperModel
