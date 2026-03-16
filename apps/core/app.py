@@ -479,7 +479,8 @@ def search(
     order_clause = {
         "date": "m.created_at DESC",
         "duration": "m.duration DESC",
-    }.get(sort_by, "s.start ASC")
+        "relevance": "fts.rank",
+    }.get(sort_by, "fts.rank")
 
     with _connect(DEFAULT_DB_PATH) as conn:
         total = conn.execute(
