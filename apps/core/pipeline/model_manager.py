@@ -110,8 +110,8 @@ def download_model(
         return False
 
 
-def get_model_info(model_size: str) -> dict:
-    """Get information about a model"""
+def get_model_info(model_size: str) -> Optional[dict]:
+    """Get information about a model, or None if the model name is unknown."""
     model_sizes = {
         "tiny": {"size_mb": 75, "params": "39M", "speed": "~32x"},
         "base": {"size_mb": 142, "params": "74M", "speed": "~16x"},
@@ -120,11 +120,15 @@ def get_model_info(model_size: str) -> dict:
         "large-v2": {"size_mb": 2900, "params": "1550M", "speed": "~1x"},
         "large-v3": {"size_mb": 2900, "params": "1550M", "speed": "~1x"},
     }
-    
-    info = model_sizes.get(model_size, {})
+
+    base_info = model_sizes.get(model_size)
+    if base_info is None:
+        return None
+
+    info = dict(base_info)
     info["downloaded"] = is_model_downloaded(model_size)
     info["cache_path"] = str(get_model_cache_path(model_size))
-    
+
     return info
 
 
