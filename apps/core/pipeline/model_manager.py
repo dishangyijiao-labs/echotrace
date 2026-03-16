@@ -86,27 +86,27 @@ def download_model(
     try:
         if is_model_downloaded(model_size):
             if progress_callback:
-                progress_callback(f"Model '{model_size}' already downloaded")
+                progress_callback(f"Model '{model_size}' already downloaded", 1.0)
             return True
-        
+
         if progress_callback:
-            progress_callback(f"Downloading model '{model_size}'... This may take a few minutes.")
-        
+            progress_callback(f"Downloading model '{model_size}'... This may take a few minutes.", 0.0)
+
         # This will trigger the download
         compute_type = "float16" if device == "cuda" else "int8"
         model = WhisperModel(model_size, device=device, compute_type=compute_type)
-        
+
         # Test the model to ensure it's properly loaded
         del model
-        
+
         if progress_callback:
-            progress_callback(f"Model '{model_size}' downloaded successfully!")
-        
+            progress_callback(f"Model '{model_size}' downloaded successfully!", 0.9)
+
         return True
-    
+
     except Exception as e:
         if progress_callback:
-            progress_callback(f"Error downloading model: {str(e)}")
+            progress_callback(f"Error downloading model: {str(e)}", 0.0)
         return False
 
 
