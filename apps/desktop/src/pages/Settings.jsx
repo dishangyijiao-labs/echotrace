@@ -6,9 +6,11 @@ import api from "../lib/api";
 
 const MODEL_OPTIONS = [
   { value: "tiny",     label: "tiny" },
+  { value: "base",     label: "base" },
   { value: "small",    label: "small" },
   { value: "medium",   label: "medium" },
   { value: "large-v2", label: "large-v2" },
+  { value: "large-v3", label: "large-v3" },
 ];
 
 function Settings() {
