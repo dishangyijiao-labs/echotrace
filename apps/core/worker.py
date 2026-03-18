@@ -207,14 +207,14 @@ def _update_media_duration(conn: sqlite3.Connection, media_id: int, duration: fl
     )
 
 
-def process_job(conn: sqlite3.Connection, job, worker_id: str) -> None:
+def process_job(conn: sqlite3.Connection, job, worker_id: str, db_path: Path = DEFAULT_DB_PATH) -> None:
     job_id = job["id"]
     _tx_log.info("Starting job %d (worker=%s)", job_id, worker_id)
     _set_job_status(conn, job_id, "running")
     _set_job_progress(conn, job_id, 0, 0, 0.01)
     conn.commit()
 
-    heartbeat = _start_job_heartbeat(DEFAULT_DB_PATH, job_id)
+    heartbeat = _start_job_heartbeat(db_path, job_id)
 
     media = conn.execute(
         "SELECT id, path, filename FROM media WHERE id = ?",
@@ -354,7 +354,7 @@ def run_worker(db_path: Path, poll_interval: float, once: bool) -> None:
                     break
                 time.sleep(poll_interval)
                 continue
-            process_job(conn, job, worker_id)
+            process_job(conn, job, worker_id, db_path)
             if once:
                 break
 
