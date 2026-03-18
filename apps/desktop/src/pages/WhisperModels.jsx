@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle, Download, Loader, XCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import api from "../lib/api";
 
 const MODEL_LIST = ["tiny", "base", "small", "medium", "large-v2", "large-v3"];
@@ -24,7 +25,7 @@ function ProgressBar({ value }) {
   );
 }
 
-function ModelRow({ model, info, onDownload, onCancel }) {
+function ModelRow({ model, info, onDownload, onCancel, t }) {
   const isDownloaded = info?.downloaded || info?.status === "done";
   const isActive = ["queued", "downloading", "verifying"].includes(info?.status);
   const progress = info?.progress ?? 0;
@@ -39,7 +40,7 @@ function ModelRow({ model, info, onDownload, onCancel }) {
         <div className="flex items-center gap-2">
           {STATUS_ICON[info?.status] || (isDownloaded ? STATUS_ICON.done : null)}
           <span className="text-xs text-gray-500 capitalize">
-            {isDownloaded ? "已下载" : (info?.status || "未下载")}
+            {isDownloaded ? t('whisperModels.status.downloaded') : (info?.status || t('whisperModels.status.notDownloaded'))}
           </span>
         </div>
         {isActive && (
@@ -60,7 +61,7 @@ function ModelRow({ model, info, onDownload, onCancel }) {
               className="btn btn-secondary text-xs"
               onClick={() => onCancel(model)}
             >
-              取消
+              {t('whisperModels.actions.cancel')}
             </button>
           ) : (
             <button
@@ -69,7 +70,7 @@ function ModelRow({ model, info, onDownload, onCancel }) {
               onClick={() => onDownload(model)}
             >
               <Download className="w-3 h-3" />
-              下载
+              {t('whisperModels.actions.download')}
             </button>
           )}
         </div>
@@ -79,6 +80,7 @@ function ModelRow({ model, info, onDownload, onCancel }) {
 }
 
 function WhisperModels() {
+  const { t } = useTranslation();
   const [modelInfo, setModelInfo] = useState({});
   const [loading, setLoading] = useState(true);
   const eventSourcesRef = useRef({});
@@ -177,8 +179,8 @@ function WhisperModels() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Whisper 模型</h1>
-        <p className="mt-2 text-gray-600">管理本地 Whisper 转写模型下载。</p>
+        <h1 className="text-3xl font-bold text-gray-900">{t('whisperModels.title')}</h1>
+        <p className="mt-2 text-gray-600">{t('whisperModels.subtitle')}</p>
       </div>
 
       <div className="card">
@@ -186,11 +188,11 @@ function WhisperModels() {
           <table className="table">
             <thead>
               <tr>
-                <th>模型</th>
-                <th>大小</th>
-                <th>参数量</th>
-                <th>状态</th>
-                <th>操作</th>
+                <th>{t('whisperModels.table.model')}</th>
+                <th>{t('whisperModels.table.size')}</th>
+                <th>{t('whisperModels.table.params')}</th>
+                <th>{t('whisperModels.table.status')}</th>
+                <th>{t('whisperModels.table.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -201,6 +203,7 @@ function WhisperModels() {
                   info={modelInfo[m]}
                   onDownload={handleDownload}
                   onCancel={handleCancel}
+                  t={t}
                 />
               ))}
             </tbody>
@@ -210,7 +213,7 @@ function WhisperModels() {
 
       <div className="card bg-blue-50 border-blue-200">
         <p className="text-sm text-blue-700">
-          模型下载后保存在本地缓存目录，无需重复下载。下载过程中可关闭此页面，进度会在后台保持。
+          {t('whisperModels.info')}
         </p>
       </div>
     </div>

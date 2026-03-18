@@ -390,6 +390,26 @@
       "noSegments": "No segment data available."
     }
   },
+  "whisperModels": {
+    "title": "Whisper Models",
+    "subtitle": "Manage local Whisper transcription model downloads.",
+    "table": {
+      "model": "Model",
+      "size": "Size",
+      "params": "Parameters",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "downloaded": "Downloaded",
+      "notDownloaded": "Not Downloaded"
+    },
+    "actions": {
+      "download": "Download",
+      "cancel": "Cancel"
+    },
+    "info": "Models are saved to your local cache and do not need to be re-downloaded. You can close this page during a download — progress continues in the background."
+  },
   "common": {
     "save": "Save",
     "cancel": "Cancel",
