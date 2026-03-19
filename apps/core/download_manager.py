@@ -121,7 +121,7 @@ class DownloadManager:
         def _progress(message: str, progress: float = 0.0) -> None:
             task._update(DownloadStatus.DOWNLOADING, progress, message)
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         try:
             # Run blocking download_fn in a thread pool
             success = await loop.run_in_executor(
