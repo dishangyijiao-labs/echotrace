@@ -117,7 +117,7 @@ class TestResetStaleJobs:
         conn = _get_conn(tmp_db)
         media_id = _insert_media(conn)
         # Use current timestamp — should NOT be reset
-        now = dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S") + "Z"
+        now = dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%S") + "Z"
         conn.execute(
             "INSERT INTO job (media_id, status, engine, model, device, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
             (media_id, "running", "whisper", "tiny", "cpu", now, now),
