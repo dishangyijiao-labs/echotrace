@@ -19,7 +19,7 @@ function TaskQueue() {
     { value: "tiny",     label: t('taskQueue.model.tiny') },
     { value: "small",    label: t('taskQueue.model.small') },
     { value: "medium",   label: t('taskQueue.model.medium') },
-    { value: "large",    label: t('taskQueue.model.large') },
+    { value: "large-v3", label: t('taskQueue.model.large') },
   ];
 
   const calcEta = (history) => {
