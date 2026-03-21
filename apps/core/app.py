@@ -160,7 +160,7 @@ def validate_import_path(path_str: str) -> Path:
 
 
 def _now() -> str:
-    return dt.datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    return dt.datetime.now(dt.UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def _connect(db_path: Path) -> sqlite3.Connection:
