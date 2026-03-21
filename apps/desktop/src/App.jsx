@@ -9,6 +9,7 @@ import Results from "./pages/Results";
 import TranscriptDetail from "./pages/TranscriptDetail";
 import Services from "./pages/Services";
 import Models from "./pages/Models";
+import WhisperModels from "./pages/WhisperModels";
 import Settings from "./pages/Settings";
 import UpdateChecker from "./components/UpdateChecker";
 
@@ -128,6 +129,7 @@ function App() {
 
           <Route path="services" element={<Services />} />
           <Route path="models" element={<Models />} />
+          <Route path="whisper-models" element={<WhisperModels />} />
           <Route path="settings" element={<Settings />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
