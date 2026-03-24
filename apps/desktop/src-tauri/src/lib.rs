@@ -102,6 +102,14 @@ fn venv_dir(app: &AppHandle) -> PathBuf {
 }
 
 fn python_command_with_app(app: &AppHandle) -> PathBuf {
+    // 0. Bundled standalone Python (portable, from python-build-standalone)
+    //    Must be checked first — setup_venv() returns early when this exists
+    //    and does NOT create a managed venv, so checks 1 & 2 below would fail.
+    let bundled_standalone = core_dir().join("python").join("bin").join("python3");
+    if bundled_standalone.exists() {
+        return bundled_standalone;
+    }
+
     // 1. Prefer the managed venv in app data dir (portable, created at first launch)
     let managed = venv_dir(app).join("bin").join("python3");
     if managed.exists() {
