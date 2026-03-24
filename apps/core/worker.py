@@ -318,7 +318,7 @@ def process_job(conn: sqlite3.Connection, job, worker_id: str) -> None:
 def _reset_stale_jobs(conn: sqlite3.Connection, stale_threshold_seconds: int = 120) -> int:
     """Reset jobs stuck in 'running' state beyond the stale threshold."""
     cutoff = (
-        dt.datetime.utcnow() - dt.timedelta(seconds=stale_threshold_seconds)
+        dt.datetime.now(dt.UTC) - dt.timedelta(seconds=stale_threshold_seconds)
     ).strftime("%Y-%m-%dT%H:%M:%S") + "Z"
     cursor = conn.execute(
         """
