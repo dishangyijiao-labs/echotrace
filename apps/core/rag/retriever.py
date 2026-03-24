@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 from typing import List, Dict, Any
 
@@ -19,31 +20,30 @@ class HybridRetriever:
 
     def _keyword_search(self, query: str, limit: int = 20) -> List[Dict[str, Any]]:
         """FTS5 关键词搜索（trigram tokenizer，支持中文子串匹配）"""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            conn.row_factory = sqlite3.Row
 
-        rows = conn.execute(
-            """
-            SELECT
-                s.id as segment_id,
-                s.transcript_id,
-                s.start,
-                s.end,
-                s.text,
-                t.media_id,
-                m.filename
-            FROM segment_fts sf
-            JOIN segment s ON sf.rowid = s.id
-            JOIN transcript t ON s.transcript_id = t.id
-            JOIN media m ON t.media_id = m.id
-            WHERE segment_fts MATCH ?
-            ORDER BY s.start ASC
-            LIMIT ?
-            """,
-            (query, limit),
-        ).fetchall()
+            rows = conn.execute(
+                """
+                SELECT
+                    s.id as segment_id,
+                    s.transcript_id,
+                    s.start,
+                    s.end,
+                    s.text,
+                    t.media_id,
+                    m.filename
+                FROM segment_fts sf
+                JOIN segment s ON sf.rowid = s.id
+                JOIN transcript t ON s.transcript_id = t.id
+                JOIN media m ON t.media_id = m.id
+                WHERE segment_fts MATCH ?
+                ORDER BY s.start ASC
+                LIMIT ?
+                """,
+                (query, limit),
+            ).fetchall()
 
-        conn.close()
         return [
             {
                 "segment_id": r["segment_id"],
@@ -64,27 +64,26 @@ class HybridRetriever:
         results = self.vector_store.search_semantic(query, k=k)
 
         # 补充文件名信息
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            conn.row_factory = sqlite3.Row
 
-        for item in results:
-            transcript_id = item["transcript_id"]
-            row = conn.execute(
-                """
-                SELECT m.id as media_id, m.filename
-                FROM transcript t
-                JOIN media m ON t.media_id = m.id
-                WHERE t.id = ?
-                """,
-                (transcript_id,),
-            ).fetchone()
+            for item in results:
+                transcript_id = item["transcript_id"]
+                row = conn.execute(
+                    """
+                    SELECT m.id as media_id, m.filename
+                    FROM transcript t
+                    JOIN media m ON t.media_id = m.id
+                    WHERE t.id = ?
+                    """,
+                    (transcript_id,),
+                ).fetchone()
 
-            if row:
-                item["media_id"] = row["media_id"]
-                item["filename"] = row["filename"]
-            item["source"] = "semantic"
+                if row:
+                    item["media_id"] = row["media_id"]
+                    item["filename"] = row["filename"]
+                item["source"] = "semantic"
 
-        conn.close()
         return results
 
     def search(
