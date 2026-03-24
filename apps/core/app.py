@@ -646,7 +646,6 @@ def delete_transcript(transcript_id: int) -> dict:
 @app.post("/transcripts/{transcript_id}/write-subtitle")
 def write_subtitle(transcript_id: int) -> dict:
     """Write an SRT subtitle file alongside the source media file (non-destructive)."""
-    import subprocess
     with _connect(DEFAULT_DB_PATH) as conn:
         transcript = conn.execute(
             """
