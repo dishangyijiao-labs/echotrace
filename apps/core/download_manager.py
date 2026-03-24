@@ -132,6 +132,11 @@ class DownloadManager:
             task._update(DownloadStatus.FAILED, 0.0, "Download failed", str(exc))
             return
 
+        # Respect a cancellation that arrived while the thread was still running
+        if task.status == DownloadStatus.CANCELLED:
+            _log.info("Download cancelled (thread finished): %s", task.model_name)
+            return
+
         if success:
             task._update(DownloadStatus.VERIFYING, 0.95, "Verifying…")
             await asyncio.sleep(0.2)  # brief pause for UX
