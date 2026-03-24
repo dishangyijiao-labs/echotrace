@@ -11,7 +11,7 @@ import {
   FileText,
   Menu,
   X,
-
+  Cpu,
   PanelLeftClose,
   PanelLeftOpen
 } from "lucide-react";
@@ -46,6 +46,7 @@ function AppLayout() {
     { name: t('nav.results'), href: "/results", icon: FileText },
 
     { name: t('nav.services'), href: "/services", icon: Terminal },
+    { name: t('nav.whisperModels'), href: "/whisper-models", icon: Cpu },
     { name: t('nav.models'), href: "/models", icon: KeyRound },
     { name: t('nav.settings'), href: "/settings", icon: SlidersHorizontal }
   ];
