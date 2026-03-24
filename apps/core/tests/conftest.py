@@ -57,7 +57,6 @@ def app_client(tmp_db, monkeypatch):
     """Return an httpx AsyncClient backed by the FastAPI app with a test DB."""
     monkeypatch.setenv("ECHOTRACE_SEMANTIC_SEARCH", "false")
 
-    import importlib
     import app as app_module
     # Point the app at the test database
     monkeypatch.setattr(app_module, "DEFAULT_DB_PATH", tmp_db)
