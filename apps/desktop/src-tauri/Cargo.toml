@@ -1,6 +1,6 @@
 [package]
 name = "echotrace"
-version = "0.1.0"
+version = "1.0.1"
 description = "EchoTrace - Video Archive Search Engine for Content Creators"
 authors = ["EchoTrace Team"]
 edition = "2021"
