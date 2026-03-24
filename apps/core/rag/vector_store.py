@@ -128,30 +128,29 @@ def sync_all_transcripts_to_vector(db_path: Path, embedding_provider: str = "loc
         {"transcripts": 处理的转录数, "segments": 索引的分段数}
     """
     vector_store = get_vector_store(embedding_provider)
-    
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
 
-    # 查询所有转录文本
-    transcripts = conn.execute("SELECT id FROM transcript").fetchall()
-    
     total_transcripts = 0
     total_segments = 0
 
-    for t in transcripts:
-        transcript_id = t["id"]
-        
-        # 获取该转录的所有分段
-        segments = conn.execute(
-            "SELECT id, start, end, text FROM segment WHERE transcript_id = ?",
-            (transcript_id,),
-        ).fetchall()
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
 
-        seg_list = [dict(s) for s in segments]
-        indexed = vector_store.index_transcript(transcript_id, seg_list)
-        
-        total_transcripts += 1
-        total_segments += indexed
+        # 查询所有转录文本
+        transcripts = conn.execute("SELECT id FROM transcript").fetchall()
 
-    conn.close()
+        for t in transcripts:
+            transcript_id = t["id"]
+
+            # 获取该转录的所有分段
+            segments = conn.execute(
+                "SELECT id, start, end, text FROM segment WHERE transcript_id = ?",
+                (transcript_id,),
+            ).fetchall()
+
+            seg_list = [dict(s) for s in segments]
+            indexed = vector_store.index_transcript(transcript_id, seg_list)
+
+            total_transcripts += 1
+            total_segments += indexed
+
     return {"transcripts": total_transcripts, "segments": total_segments}
