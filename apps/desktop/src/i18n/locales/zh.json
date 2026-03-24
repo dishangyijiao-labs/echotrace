@@ -391,6 +391,26 @@
       "noSegments": "暂无分段信息。"
     }
   },
+  "whisperModels": {
+    "title": "Whisper 模型",
+    "subtitle": "管理本地 Whisper 转写模型下载。",
+    "table": {
+      "model": "模型",
+      "size": "大小",
+      "params": "参数量",
+      "status": "状态",
+      "actions": "操作"
+    },
+    "status": {
+      "downloaded": "已下载",
+      "notDownloaded": "未下载"
+    },
+    "actions": {
+      "download": "下载",
+      "cancel": "取消"
+    },
+    "info": "模型下载后保存在本地缓存目录，无需重复下载。下载过程中可关闭此页面，进度会在后台保持。"
+  },
   "common": {
     "save": "保存",
     "cancel": "取消",
