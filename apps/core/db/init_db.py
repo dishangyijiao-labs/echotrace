@@ -113,23 +113,6 @@ def init_db(db_path: Path, schema_path: Path | None = None) -> None:  # noqa: AR
     _log.info("Database ready at %s", db_path)
 
 
-def _ensure_job_columns(conn: sqlite3.Connection) -> None:
-    cursor = conn.execute("PRAGMA table_info(job)")
-    existing = {row[1] for row in cursor.fetchall()}
-    columns = {
-        "progress": "REAL NOT NULL DEFAULT 0",
-        "processed_segments": "INTEGER NOT NULL DEFAULT 0",
-        "total_segments": "INTEGER NOT NULL DEFAULT 0",
-        "worker_id": "TEXT",
-    }
-    _allowed = set(columns.keys())
-    for name, definition in columns.items():
-        if name not in existing:
-            if name not in _allowed:
-                raise ValueError(f"Unexpected column name: {name!r}")
-            conn.execute(f"ALTER TABLE job ADD COLUMN {name} {definition}")
-
-
 if __name__ == "__main__":
     import sys
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
