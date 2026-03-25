@@ -38,7 +38,7 @@ class HybridRetriever:
                 JOIN transcript t ON s.transcript_id = t.id
                 JOIN media m ON t.media_id = m.id
                 WHERE segment_fts MATCH ?
-                ORDER BY s.start ASC
+                ORDER BY sf.rank
                 LIMIT ?
                 """,
                 (query, limit),
