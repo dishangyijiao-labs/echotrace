@@ -113,7 +113,7 @@ _vector_store: VectorStoreService | None = None
 def get_vector_store(embedding_provider: str = "local") -> VectorStoreService:
     """获取向量存储服务单例"""
     global _vector_store
-    if _vector_store is None:
+    if _vector_store is None or _vector_store.embedding_service.provider != embedding_provider:
         _vector_store = VectorStoreService(embedding_provider=embedding_provider)
     return _vector_store
 
