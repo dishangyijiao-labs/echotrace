@@ -29,8 +29,7 @@ from db.init_db import init_db
 _t2s = opencc.OpenCC("t2s")
 
 APP_ROOT = Path(__file__).resolve().parent
-import os as _os
-_data_dir = _os.environ.get("ECHOTRACE_DATA_DIR")
+_data_dir = os.environ.get("ECHOTRACE_DATA_DIR")
 DEFAULT_DB_PATH = Path(_data_dir) / "app.db" if _data_dir else APP_ROOT / "data" / "app.db"
 SCHEMA_PATH = APP_ROOT / "db" / "schema.sql"
 STAGING_DIR = Path(_data_dir) / "staging" if _data_dir else APP_ROOT / "data" / "staging"
