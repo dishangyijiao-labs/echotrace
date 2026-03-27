@@ -110,8 +110,11 @@ class HybridRetriever:
             return self._semantic_search(query, limit)
 
         # 混合模式：各取一半，然后归并
-        k_results = self._keyword_search(query, limit // 2)
-        s_results = self._semantic_search(query, limit // 2)
+        # Use ceiling division so an odd limit (e.g. 5) fetches 3 per side
+        # instead of 2, ensuring up to `limit` unique results after dedup.
+        half = (limit + 1) // 2
+        k_results = self._keyword_search(query, half)
+        s_results = self._semantic_search(query, half)
 
         # 简单归并：去重 + 排序
         seen = set()
