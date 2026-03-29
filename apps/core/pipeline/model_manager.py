@@ -157,10 +157,13 @@ if __name__ == "__main__":
     
     print(f"Checking model: {model}")
     info = get_model_info(model)
+    if info is None:
+        print(f"Unknown model: {model!r}. Valid sizes: tiny, base, small, medium, large-v2, large-v3")
+        sys.exit(1)
     print(f"  Downloaded: {info['downloaded']}")
     print(f"  Size: {info.get('size_mb', 'unknown')} MB")
     print(f"  Cache path: {info['cache_path']}")
-    
+
     if not info['downloaded']:
         print(f"\nDownloading {model} model...")
         success = download_model(model, progress_callback=print)
