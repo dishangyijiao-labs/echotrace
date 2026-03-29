@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 
 import pytest
 
@@ -48,17 +49,23 @@ class TestDownloadManager:
     async def test_cancel_running_download(self):
         dm = DownloadManager()
 
-        async def _slow(model, device, cb):
-            await asyncio.sleep(10)
+        # Use a threading.Event so the download blocks until we release it,
+        # guaranteeing the task is still running when cancel() is called.
+        release = threading.Event()
+
+        def _slow_sync(model, device, cb):
+            release.wait(timeout=5.0)
             return True
 
-        # Start but don't await completion
-        task = await dm.start_download("small", "cpu", lambda m, d, cb: None)
-        # Immediately cancel
+        task = await dm.start_download("small", "cpu", _slow_sync)
+        await asyncio.sleep(0.05)  # let the executor thread start
+
+        assert dm.is_running("small"), "task should still be running"
         result = await dm.cancel("small")
-        # cancel returns True only if task was running; it may or may not be depending on timing
-        # Just ensure no exception is raised
-        assert isinstance(result, bool)
+        release.set()  # unblock the download thread so it can finish
+
+        assert result is True
+        assert task.status == DownloadStatus.CANCELLED
 
     async def test_recover_incomplete(self):
         dm = DownloadManager()
