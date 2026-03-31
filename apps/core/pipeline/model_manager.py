@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import shutil
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 from faster_whisper import WhisperModel
 
@@ -70,7 +70,7 @@ def is_model_downloaded(model_size: str) -> bool:
 def download_model(
     model_size: str,
     device: str = "cpu",
-    progress_callback: Optional[callable] = None
+    progress_callback: Optional[Callable[[str, float], None]] = None
 ) -> bool:
     """
     Pre-download a Whisper model
