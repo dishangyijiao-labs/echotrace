@@ -36,7 +36,7 @@ from pydantic import BaseModel
 from db.init_db import init_db
 from download_manager import download_manager, DownloadStatus
 from errors import E, ErrorResponse, raise_api_error, sanitize_error, build_error
-from llm_service import llm_summarize, PROVIDERS
+from llm_service import llm_summarize, PROVIDERS, parse_structured_output
 from pipeline.model_manager import get_model_info, is_model_downloaded, download_model
 
 _app_log = logging.getLogger("echotrace.app")
@@ -530,19 +530,33 @@ async def summarize(payload: SummarizeRequest) -> dict:
     if payload.provider not in PROVIDERS:
         raise HTTPException(status_code=400, detail="unknown provider")
 
-    summary = await llm_summarize(
+    result = await llm_summarize(
         provider_name=payload.provider,
         model=payload.model,
         text=payload.text,
         prompt_type=payload.prompt_type,
     )
-    if payload.transcript_id and payload.update_summary and summary:
+
+    # For structured types (outline, action_items), result is a dict.
+    # For summary, result is a plain string.
+    is_structured = isinstance(result, dict)
+
+    # Store as plain text summary in DB (serialize structured output to JSON string)
+    summary_text = json.dumps(result, ensure_ascii=False) if is_structured else result
+    if payload.transcript_id and payload.update_summary and summary_text:
         with _connect(DEFAULT_DB_PATH) as conn:
             conn.execute(
                 "UPDATE transcript SET summary = ?, updated_at = ? WHERE id = ?",
-                (summary, _now(), payload.transcript_id),
+                (summary_text, _now(), payload.transcript_id),
             )
-    return {"ok": True, "summary": summary}
+
+    response: dict = {"ok": True, "prompt_type": payload.prompt_type}
+    if is_structured:
+        response["data"] = result
+        response["summary"] = summary_text  # backward compat
+    else:
+        response["summary"] = result
+    return response
 
 
 @app.get("/export/{transcript_id}")
