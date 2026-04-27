@@ -118,10 +118,10 @@ class DownloadManager:
         _log.info("Download started: %s (device=%s)", task.model_name, task.device)
         task._update(DownloadStatus.DOWNLOADING, 0.0, "Starting download…")
 
-        def _progress(message: str, progress: float = 0.0) -> None:
-            task._update(DownloadStatus.DOWNLOADING, progress, message)
-
         loop = asyncio.get_running_loop()
+
+        def _progress(message: str, progress: float = 0.0) -> None:
+            loop.call_soon_threadsafe(task._update, DownloadStatus.DOWNLOADING, progress, message)
         try:
             # Run blocking download_fn in a thread pool
             success = await loop.run_in_executor(
