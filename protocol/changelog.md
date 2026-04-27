@@ -4,6 +4,26 @@
 
 ---
 
+## [2026-04-27] 修复 test_well_known_paths 测试与项目实际状态冲突
+
+### 改了什么
+- `apps/core/tests/test_media.py` 的 `_reset_ffmpeg_cache` autouse fixture：
+  - 新增 `tmp_path_factory` 参数，为每个 test 创建独立 sandbox
+  - 在 sandbox 里建一个不含 `bin/ffmpeg` 的目录，patch `media_mod.__file__` 指向其中
+  - 让 `_find_ffmpeg` 的 bundled 检查默认扑空，避免短路后续路径分支
+
+### 为什么
+- 项目目录下真实存在 `apps/core/bin/ffmpeg`（macOS .app 打包用的 80MB 真二进制）
+- 原 `test_well_known_paths` 只 patch 了 `_FFMPEG_SEARCH_PATHS`，没处理 bundled 这一步，导致 `_find_ffmpeg` 在第 2 步就返回真二进制路径，永远到不了 well-known paths
+
+### 影响范围
+- 仅 `apps/core/tests/test_media.py`，未改业务代码
+- `test_bundled_binary` 自身用 `with patch.object` 嵌套覆盖 `__file__`，退出 with 自动恢复，与 fixture 不冲突
+
+### 关键决策
+- 选方案 B（fixture 默认隔离）而非方案 A（仅修单个 test）：根治"测试环境与项目真实状态冲突"，未来新增路径优先级测试不必每次重复 patch
+- 不选方案 C（重构 `_find_ffmpeg` 让搜索策略可注入）：改动业务代码 scope 过大，不值
+
 ## [2026-04-16] 混合检索 RRF 融合 + LLM 结构化输出
 
 ### 改了什么

@@ -13,10 +13,22 @@ import pipeline.media as media_mod
 
 
 @pytest.fixture(autouse=True)
-def _reset_ffmpeg_cache():
-    """Reset the cached ffmpeg path before each test."""
+def _reset_ffmpeg_cache(tmp_path_factory):
+    """Reset cache and isolate bundled-binary lookup.
+
+    Default assumption: no bundled <core>/bin/ffmpeg exists. The real project ships a
+    bundled ffmpeg for macOS .app packaging, which would otherwise short-circuit the
+    well-known-paths and PATH branches in _find_ffmpeg. Tests exercising the bundled
+    branch (test_bundled_binary) override __file__ themselves.
+    """
     media_mod._ffmpeg_bin = None
-    yield
+    sandbox = tmp_path_factory.mktemp("ffmpeg_sandbox")
+    fake_pipeline = sandbox / "pipeline"
+    fake_pipeline.mkdir()
+    fake_file = fake_pipeline / "media.py"
+    fake_file.touch()
+    with patch.object(media_mod, "__file__", str(fake_file)):
+        yield
     media_mod._ffmpeg_bin = None
 
 
