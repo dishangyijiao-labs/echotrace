@@ -153,7 +153,10 @@ async def _call_openai_compatible(
         choices = data.get("choices") or []
         if not choices:
             raise ValueError(f"LLM returned empty choices: {data}")
-        return choices[0]["message"]["content"].strip()
+        text = choices[0]["message"].get("content")
+        if not text:
+            raise ValueError(f"LLM returned null content: {data}")
+        return text.strip()
 
 
 async def _call_claude(api_key: str, model: str, prompt: str) -> str:
@@ -180,7 +183,10 @@ async def _call_claude(api_key: str, model: str, prompt: str) -> str:
         content = data.get("content") or []
         if not content:
             raise ValueError(f"Claude returned empty content: {data}")
-        return content[0]["text"].strip()
+        text = content[0].get("text")
+        if not text:
+            raise ValueError(f"Claude returned non-text content block: {data}")
+        return text.strip()
 
 
 # ---------------------------------------------------------------------------

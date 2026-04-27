@@ -280,7 +280,9 @@ def process_job(conn: sqlite3.Connection, job, worker_id: str, db_path: Path = D
             if total_duration > 0:
                 progress = min(segment.end / total_duration, 1.0)
             else:
-                progress = 0.1
+                # Duration unknown: asymptotic estimate so progress still advances
+                # Approaches 0.95 as segments grow; final 1.0 is set after all done
+                progress = 0.1 + 0.85 * processed / (processed + 30)
             now = time.monotonic()
             if processed % 5 == 0 or now - last_update >= 1.5:
                 _set_job_progress(conn, job_id, processed, 0, progress)
