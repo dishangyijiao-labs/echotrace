@@ -205,6 +205,6 @@ _retriever: HybridRetriever | None = None
 def get_retriever(db_path: Path, embedding_provider: str = "local") -> HybridRetriever:
     """获取混合检索器单例"""
     global _retriever
-    if _retriever is None:
+    if _retriever is None or _retriever.vector_store.embedding_service.provider != embedding_provider:
         _retriever = HybridRetriever(db_path, embedding_provider)
     return _retriever
