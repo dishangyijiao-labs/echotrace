@@ -67,7 +67,7 @@ def _load_settings() -> dict:
         try:
             return json.loads(path.read_text())
         except Exception:
-            pass
+            _app_log.warning("Failed to parse settings file %s; using defaults", path)
     return {}
 
 
