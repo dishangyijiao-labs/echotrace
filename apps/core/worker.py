@@ -343,9 +343,7 @@ def run_worker(db_path: Path, poll_interval: float, once: bool) -> None:
 
 
     with _connect(db_path) as conn:
-        reset_count = _reset_stale_jobs(conn)
-        if reset_count > 0:
-            _worker_log.info("Reset %d stale job(s) from 'running' to 'queued'", reset_count)
+        _reset_stale_jobs(conn)
 
         while True:
             job = _claim_next_job(conn, worker_id)
